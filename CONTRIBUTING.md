@@ -116,6 +116,15 @@ path inside the volume's `.DS_Store`, and that file ships to everyone who downlo
 Building it inside the repo would publish the maintainer's home directory. `package.sh` refuses to
 ship an image that contains local paths.
 
+## Soak testing
+
+Before a release, run the engine over real long-form material rather than clips. The last
+pass covered 24 hours of audio across 15 files in one process: 954 seconds, 90× realtime,
+peak 39 MB, no failures. Repeating a single clip 25 times drifted 0.5 MB, which is the
+check that matters for leaks. Also worth re-testing: mid-flight cancellation, a file
+deleted while it's being read, silence, a video with no audio track, and a file whose
+extension lies about its contents. Each of those has produced a bug at least once.
+
 ## Accuracy
 
 Cross-checked against an independent `whisper.cpp` (`medium.en`) transcript of the same 3 hour 38
