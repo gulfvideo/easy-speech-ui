@@ -1,274 +1,88 @@
 # EasySpeech
 
-<img src="EasySpeechArt/EasySpeech-1024.png" alt="EasySpeech" width="120" />
+<img src="EasySpeechArt/EasySpeech-1024.png" alt="EasySpeech" width="110" />
 
-A fast, native macOS transcription app built entirely on **Apple's on-device Speech framework**.
+Fast, native macOS transcription powered entirely by **Apple's on-device Speech framework**.
 
-No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac.
+No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac. The whole app is a 1.2 MB download with zero dependencies.
 
 ![EasySpeech](docs/screenshot.png)
-
----
-
-## Why
-
-macOS 26 ships `SpeechAnalyzer` / `SpeechTranscriber`: an on-device recognizer with no
-length limit, real word-level timestamps, and acoustic models the OS manages and shares
-with Dictation. That makes a transcription app that is small, fast, and genuinely native
-possible without bundling an inference engine.
-
-EasySpeech is about 2,900 lines of Swift with **zero dependencies**. The whole app is a
-1.2 MB download and starts instantly. A three-and-a-half hour podcast transcribes in
-under three minutes using about 20 MB of memory.
 
 ---
 
 ## Features
 
 - **Batch queue** — drop in a pile of files, processed one at a time
-- **Live transcription** from the microphone, with in-progress text shown greyed until finalized
-- **Menu bar dictation** — start from the status item, talk, stop, and the text is already on your clipboard
-- **Output formats** — `.txt`, `.srt`, `.vtt`
-- **Real word-level timestamps**, so subtitle cues are cut at natural pauses and balanced across two lines
-- **Translation** to 20+ languages, on-device, with timestamps preserved
-- **Readable numbers** — Apple's recognizer emits "1000000s of people" and "a 1000 years old"; EasySpeech repairs those to "millions of people" and "a thousand years old" without touching years, phone numbers or ordinary counts
-- **Drag & drop** anywhere in the window, onto the Dock icon, or via Finder's *Open With*
-- **Automatic format handling** — mp3, m4a, wav, aiff, flac, mp4, mov and more, decoded in-process with no conversion step
-- **Optional FFmpeg fallback** for `.ogg`, `.opus`, `.mkv`, `.wma`
-- **Language models download on demand**, or pre-download them in Settings
-- **Light, dark, or system appearance**
-- **Automatic updates** — checks GitHub daily, verifies the download against GitHub's published SHA-256, then installs and relaunches. Crucially, it does *not* make you repeat the Privacy & Security approval (see below).
-
-### Mac things it does properly
-
-- Full menu bar with real shortcuts — ⌘O open, ⌘R start, ⌘. stop, ⇧⌘L live, ⇧⌘E export
-- Toolbar holds actions only; settings live in the Options inspector, and Language is also in the Transcribe menu so it's reachable with the inspector closed
-- Contextual menus on every row; ⌫ removes a file
-- Rows are draggable back out to the Finder
-- Copy as plain text, with timestamps, or as SRT
-- Window size, sidebar width, inspector state and all options persist
-- Live transcription is a separate window, so it can sit beside a running batch
-- A status item that reports live progress ("Transcribing 31% — 1 left") and keeps the app running when every window is closed, the way a menu bar utility should. Turn it off in Settings and the app quits with its last window instead.
-- Full-text search inside a transcript
-- **Never overwrites** an existing file — appends " 2" the way the Finder does
-
----
+- **Live transcription** from the microphone, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
+- **`.txt`, `.srt` and `.vtt`** output, with real word-level timestamps so subtitle cues break at natural pauses
+- **Translation** to 20+ languages, on-device, timestamps preserved
+- **Any common format** — mp3, m4a, wav, aiff, flac, mp4, mov and more, decoded in-process with no conversion step
+- **Automatic updates** that don't make you repeat the macOS security approval
+- Drag & drop, Finder *Open With*, full menu bar and keyboard shortcuts, light/dark/system appearance
+- Never overwrites an existing file
 
 ## Performance
 
-Measured on Apple Silicon against a **3 hour 38 minute** podcast MP3 — 13,114 seconds of
-two-host conversational speech:
+A **3 hour 38 minute** podcast transcribes in **167 seconds** — 78× realtime — using **20 MB** of memory and only 20 seconds of CPU. The Neural Engine does the recognition, so the machine stays responsive.
 
-| | Result |
-|---|---|
-| Wall clock | **167 seconds** |
-| Speed | **78× realtime** |
-| CPU time | 20s user / 2.6s system |
-| Peak memory | **20.5 MB** |
-| Output | 4,590 segments · 39,665 words · 210 KB text |
-
-The gap between 167 seconds of wall clock and 20 seconds of CPU is the point: the Neural
-Engine does the recognition, so the machine stays responsive and cool while a batch runs.
-
-Memory is flat regardless of length — a 3.6-hour file and a 30-second file both sit around
-20 MB, because audio is pulled on demand rather than decoded up front.
-
----
+Memory is flat regardless of length: a 3.6-hour file and a 30-second file both sit around 20 MB.
 
 ## Requirements
 
-- **macOS 26 or later** — this is where `SpeechAnalyzer` was introduced
-- Apple Silicon
-- Xcode 26+ command line tools to build from source
+**macOS 26 or later** on Apple Silicon. `SpeechAnalyzer` doesn't exist before macOS 26.
 
 ---
 
 ## Install
 
-Download the DMG from the
-[latest release](https://github.com/gulfvideo/easy-speech-ui/releases/latest),
-open it, and drag EasySpeech onto the Applications folder.
+Download the DMG from the [latest release](https://github.com/gulfvideo/easy-speech-ui/releases/latest) and drag EasySpeech onto Applications.
 
 ![Installing from the disk image](docs/dmg-install.png)
 
-### First launch: macOS will block it
+### First launch is blocked by macOS
 
-EasySpeech isn't signed with an Apple Developer ID, so macOS will refuse to open it the
-first time with a message like *"Apple could not verify EasySpeech is free of malware."*
-This is expected for any independently distributed app that hasn't paid Apple's $99/yr
-developer fee — it is not a judgement about this app. To get past it:
+EasySpeech isn't signed with an Apple Developer ID, so macOS refuses to open it the first time. This is expected for any independently distributed app that hasn't paid Apple's $99/yr developer fee.
 
 1. Try to open EasySpeech once, and let it be blocked.
 2. Open **System Settings › Privacy & Security**.
-3. Scroll down to the message about EasySpeech and click **Open Anyway**.
-4. Confirm.
+3. Scroll to the message about EasySpeech and click **Open Anyway**.
 
-You only do this once.
+You only do this once — updates never ask again. On macOS 15+, right-click → *Open* no longer works for this; the Privacy & Security route does.
 
-> On macOS 15 and later, right-clicking and choosing *Open* no longer bypasses this —
-> the Privacy & Security route above is the one that works.
-
-Prefer the terminal? This does the same thing:
-
-```bash
-xattr -dr com.apple.quarantine /Applications/EasySpeech.app
-```
-
-### If you'd rather not trust a stranger's binary
-
-Fair. The whole app is ~2,900 lines of Swift with no dependencies — read it and build it
-yourself in about a minute:
+Prefer to build it yourself? It's ~2,900 lines of Swift with no dependencies:
 
 ```bash
 git clone https://github.com/gulfvideo/easy-speech-ui.git
-cd easy-speech-ui
-./build.sh
-open build/EasySpeech.app
+cd easy-speech-ui && ./build.sh && open build/EasySpeech.app
 ```
 
-A locally built copy is signed with your own machine's ad-hoc signature and never
-quarantined, so none of the above applies.
-
----
+A locally built copy is never quarantined, so none of the above applies.
 
 ## Updates
 
-EasySpeech checks its GitHub releases once a day and offers anything newer. Choosing
-**Update and Relaunch** downloads the disk image, verifies it, swaps the app in place and
-reopens it — typically in under two seconds. There's a Check Now button and an off switch
-in **Settings › Updates**.
+EasySpeech checks its releases once a day. **Update and Relaunch** downloads, verifies and swaps the app in place, usually in under two seconds. There's a Check Now button and an off switch in **Settings › Updates**.
 
 ![The update sheet](docs/update-sheet.png)
 
-### Why an update doesn't make you redo the security steps
-
-macOS shows the "unidentified developer" prompt for apps carrying the
-`com.apple.quarantine` attribute, which browsers and Mail attach to anything they
-download. `URLSession` doesn't attach it, and EasySpeech doesn't opt in via
-`LSFileQuarantineEnabled` — so an update the app fetches for itself arrives unquarantined
-and simply launches. The approval you gave on first install is never asked for again. The
-installer strips the attribute anyway, in case that ever changes.
-
-### What's checked before an update is installed
-
-Without a Developer ID there's no signing identity to pin, so verification is layered:
-
-- HTTPS, to a repository path compiled into the app rather than a preference
-- the **SHA-256 that GitHub publishes for the asset**, recomputed over the download
-- the unpacked bundle must identify itself as `com.easyspeech.ui`
-- `codesign --verify --deep` must pass on the unpacked app
-
-Any failure discards the download instead of installing it. The swap moves the old bundle
-aside first and restores it if the replacement fails, so a bad update can't leave you
-without a working app.
-
----
-
-## Build
-
-```bash
-./build.sh
-open build/EasySpeech.app
-```
-
-That's the whole process — no package manager, no dependencies to fetch. To install:
-
-```bash
-cp -R build/EasySpeech.app /Applications/
-```
-
-To build the distributable disk image — including the laid-out install window:
-
-```bash
-./package.sh
-```
-
-The background art is generated by `Packaging/MakeDMGBackground.swift` as a HiDPI TIFF,
-and the window layout is written by driving Finder over AppleScript, which is the only
-thing that can put icon positions and a background picture into a `.DS_Store`. If Finder
-refuses (automation permission), packaging still succeeds — you just get a plain image.
-
-The build script ad-hoc signs the app so the microphone permission prompt works. To
-distribute it signed, set your identity:
-
-```bash
-CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh
-```
-
----
-
-## Project layout
-
-```
-Sources/EasySpeech/
-├── App/          @main entry, AppDelegate, menu commands
-├── Models/       Transcript, Job, AppSettings
-├── Engine/
-│   ├── AudioSource.swift        AVFoundation decode → PCM (pull-based)
-│   ├── FileTranscriber.swift    SpeechAnalyzer orchestration
-│   ├── LiveTranscriber.swift    Microphone capture
-│   ├── LocaleCatalog.swift      Language model install/reserve
-│   ├── TranslationService.swift Apple Translation framework
-│   └── JobQueue.swift           Sequential batch processing
-├── Export/       SRT / VTT / text writers, number repair
-└── Views/        SwiftUI interface
-
-EasySpeechArt/     Icon set — .icns, .iconset, menu bar template, SVG masters
-```
-
-### Accuracy
-
-Validated against an independent `whisper.cpp` (`medium.en`) transcript of the same
-3 hour 38 minute recording — hard, fast, overlapping radio talk:
-
-| | Result |
-|---|---|
-| Word count | 39,821 vs 39,661 — **0.4% apart** |
-| Word-level agreement | **89.2%** |
-| Longest verbatim agreement | 116 consecutive identical words |
-| Timeline coverage | first cue 0.0s, last ends 13,113.1s of 13,114s |
-| Gaps over 20s | **0** |
-| Hallucination loops | none in either |
-
-Two independent engines landing within half a percent, with runs of a hundred-plus
-identical words, is good evidence neither is drifting. Where they differ it's mostly
-proper nouns and genuinely unclear audio.
-
-### Three things worth knowing if you hack on this
-
-**The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat`
-returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you
-`nil` and a silently empty transcript. `AudioSource` reads the format's `streamDescription`
-and copies raw bytes, so it keeps working if Apple changes it.
-
-**Apple's inverse text normalization is very literal.** Spoken "millions" comes back as
-the digit string `1000000s`, "twenty million" as `20000000`, "a thousand years old" as
-`a 1000 years old`. `SpokenNumbers` repairs the unambiguous cases; see its rules before
-adding more, because years, phone numbers, prices and percentages must stay untouched.
-
-**Audio is pulled, not pushed.** An `AsyncStream` buffers without bound, and decoding runs
-far ahead of recognition — a 3.6-hour podcast decodes in about 12 seconds and parks
-~405 MB of PCM in memory. `AudioSource.InputSequence` is a pull-based `AsyncSequence` that
-decodes inside `next()`, so the analyzer draws one buffer at a time and memory stays flat
-no matter how long the file is.
+Updates don't re-trigger the security prompt, because macOS only quarantines what a *browser* downloads — and the download is verified against the SHA-256 GitHub publishes before anything is installed. [How that works](CONTRIBUTING.md#updates).
 
 ---
 
 ## Known limits
 
-- **45 languages.** Settings › Languages lists them. Apple supports fewer languages than some Whisper models do.
-- **No custom models.** Apple manages the acoustic model, so there is no size/quality picker and no way to load your own.
+- **45 languages.** Settings › Languages lists them.
+- **No custom models.** Apple manages the acoustic model, so there's no size/quality picker.
 - **Punctuation is always on.** Apple gives no toggle, so the app doesn't pretend to offer one.
 - **Apple Silicon, macOS 26+.** No fallback for older systems.
-- **Translation quality** is Apple's — generally good for major languages, weaker for rare pairs.
+- Translation quality is Apple's — good for major languages, weaker for rare pairs.
 
----
+## Contributing
+
+Build with `./build.sh`, package with `./package.sh`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout and the non-obvious things worth knowing before changing the engine.
 
 ## Support
 
-EasySpeech is free, has no ads, collects nothing and never will. If it saved you some
-time, you're welcome to [buy me a coffee](https://buymeacoffee.com/gulfvideo) — entirely
-optional, and it doesn't unlock anything, because there's nothing locked.
+EasySpeech is free, has no ads, collects nothing and never will. If it saved you some time, you're welcome to [buy me a coffee](https://buymeacoffee.com/gulfvideo) — entirely optional, and it doesn't unlock anything, because there's nothing locked.
 
 <a href="https://buymeacoffee.com/gulfvideo"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee" height="34"></a>
 
@@ -278,7 +92,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Credits
 
-Inspired by [EasyWhisperUI](https://github.com/mehtabmahir/easy-whisper-ui) by
-[mehtabmahir](https://github.com/mehtabmahir) — a great, genuinely useful app, and the
-reason this one exists. If you need broader language coverage or specific Whisper models,
-go use it.
+Inspired by [EasyWhisperUI](https://github.com/mehtabmahir/easy-whisper-ui) by [mehtabmahir](https://github.com/mehtabmahir) — a great, genuinely useful app, and the reason this one exists. If you need broader language coverage or specific Whisper models, go use it.

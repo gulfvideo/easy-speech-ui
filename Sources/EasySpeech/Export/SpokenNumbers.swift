@@ -17,6 +17,10 @@ enum SpokenNumbers {
     ]
 
     static func polish(_ text: String) -> String {
+        // Every rule below keys off a digit. Skipping digit-free text early avoids five
+        // regex passes over ~99% of the tokens in a typical transcript.
+        guard text.contains(where: \.isNumber) else { return text }
+
         var result = text
         result = replacePluralizedScales(in: result)
         result = replaceLargeRoundNumbers(in: result)
@@ -39,11 +43,14 @@ enum SpokenNumbers {
     ///
     /// `\b([1-9])` can't match inside a longer number, so 11th, 21st and 103rd are all
     /// untouched without needing a rule of their own.
-    private static func replaceSmallOrdinals(in text: String) -> String {
-        let months = "Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|Sept|September|Oct|October|Nov|November|Dec|December"
-        let pattern = "(\\b(?:\(months))\\.?\\s+)?\\b([1-9](?:st|nd|rd|th))\\b"
+    private static let ordinalPattern: NSRegularExpression = {
+        let months = "Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July"
+            + "|Aug|August|Sep|Sept|September|Oct|October|Nov|November|Dec|December"
+        return compile("(\\b(?:\(months))\\.?\\s+)?\\b([1-9](?:st|nd|rd|th))\\b")
+    }()
 
-        return replaceMatches(of: pattern, in: text) { groups in
+    private static func replaceSmallOrdinals(in text: String) -> String {
+        replaceMatches(with: ordinalPattern, in: text) { groups in
             // Group 1 present means a month preceded it — that's a date, leave it.
             guard groups[1].isEmpty else { return nil }
             return smallOrdinals[groups[2].lowercased()]
@@ -52,8 +59,10 @@ enum SpokenNumbers {
 
     /// "1000000s" → "millions". Nobody writes a plural on a digit string, so any match
     /// here is an artifact.
+    private static let pluralizedScalePattern = compile("\\b([0-9]{4,})s\\b")
+
     private static func replacePluralizedScales(in text: String) -> String {
-        replaceMatches(of: "\\b([0-9]{4,})s\\b", in: text) { groups in
+        replaceMatches(with: pluralizedScalePattern, in: text) { groups in
             guard let value = Int(groups[1]) else { return nil }
             return scales.first { $0.value == value }?.plural
         }
@@ -61,8 +70,10 @@ enum SpokenNumbers {
 
     /// "20000000" → "20 million". Only exact multiples of a scale, and only from a
     /// million up, so "1000" and "$1000" keep their digits.
+    private static let largeRoundPattern = compile("\\b([0-9]{7,})\\b")
+
     private static func replaceLargeRoundNumbers(in text: String) -> String {
-        replaceMatches(of: "\\b([0-9]{7,})\\b", in: text) { groups in
+        replaceMatches(with: largeRoundPattern, in: text) { groups in
             guard let value = Int(groups[1]) else { return nil }
             for scale in scales where scale.value >= 1_000_000 {
                 if value % scale.value == 0 {
@@ -75,8 +86,10 @@ enum SpokenNumbers {
     }
 
     /// "a 1000 years old" → "a thousand years old".
+    private static let articleQuantityPattern = compile("\\b(a|A|an|An)\\s+([0-9]{3,})\\b")
+
     private static func replaceArticleQuantities(in text: String) -> String {
-        replaceMatches(of: "\\b(a|A|an|An)\\s+([0-9]{3,})\\b", in: text) { groups in
+        replaceMatches(with: articleQuantityPattern, in: text) { groups in
             guard let value = Int(groups[2]) else { return nil }
             let word: String? = switch value {
             case 100: "hundred"
@@ -92,25 +105,39 @@ enum SpokenNumbers {
 
     /// "$1000" → "$1,000". Currency is explicit, so grouping is safe here in a way it
     /// is not for a bare four-digit number that might be a year or an extension.
+    private static let currencyPattern = compile("\\$([0-9]{4,})\\b")
+
+    /// NumberFormatter is expensive to build, and this one never varies.
+    private static let groupingFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter
+    }()
+
     private static func groupCurrencyDigits(in text: String) -> String {
-        replaceMatches(of: "\\$([0-9]{4,})\\b", in: text) { groups in
-            guard let value = Int(groups[1]) else { return nil }
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.locale = Locale(identifier: "en_US")
-            guard let grouped = formatter.string(from: NSNumber(value: value)) else { return nil }
+        replaceMatches(with: currencyPattern, in: text) { groups in
+            guard let value = Int(groups[1]),
+                  let grouped = groupingFormatter.string(from: NSNumber(value: value)) else { return nil }
             return "$\(grouped)"
         }
     }
 
-    /// Applies `transform` to each regex match; returning nil leaves that match as-is.
+    /// Patterns are fixed literals, so a failure here is a programming error, not input.
+    private static func compile(_ pattern: String) -> NSRegularExpression {
+        // swiftlint:disable:next force_try
+        try! NSRegularExpression(pattern: pattern)
+    }
+
+    /// Applies `transform` to each match; returning nil leaves that match as-is.
     private static func replaceMatches(
-        of pattern: String,
+        with regex: NSRegularExpression,
         in text: String,
         transform: ([String]) -> String?
     ) -> String {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let full = NSRange(text.startIndex..., in: text)
+        // Bail before allocating anything when the pattern doesn't appear.
+        guard regex.firstMatch(in: text, range: full) != nil else { return text }
         var result = text
 
         // Replace back-to-front so earlier ranges stay valid.

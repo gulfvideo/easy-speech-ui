@@ -1,6 +1,5 @@
 import AVFoundation
 import Speech
-import OSLog
 
 enum AudioSourceError: LocalizedError {
     case noAudioTrack
@@ -27,8 +26,6 @@ enum AudioSourceError: LocalizedError {
 /// AVFoundation refuses (ogg, opus, mkv, wma), and only if the user happens to have it.
 enum AudioSource {
 
-    private static let log = Logger(subsystem: "com.easyspeech.ui", category: "audio")
-
     /// Extensions AVFoundation handles natively.
     static let nativeExtensions: Set<String> = [
         "wav", "aiff", "aif", "aifc", "caf", "mp3", "m4a", "aac", "adts",
@@ -38,7 +35,8 @@ enum AudioSource {
     /// Extensions we can still open, but only by way of FFmpeg.
     static let ffmpegExtensions: Set<String> = ["ogg", "oga", "opus", "mkv", "webm", "wma", "avi", "flv", "wmv", "ts"]
 
-    static var allExtensions: [String] { Array(nativeExtensions.union(ffmpegExtensions)).sorted() }
+    /// Membership set, built once — this is consulted for every file added to the queue.
+    static let supportedExtensions: Set<String> = nativeExtensions.union(ffmpegExtensions)
 
     // MARK: - Duration
 

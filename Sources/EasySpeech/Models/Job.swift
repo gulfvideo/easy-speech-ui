@@ -38,17 +38,6 @@ enum JobState: Equatable, Sendable {
         }
     }
 
-    var fractionComplete: Double? {
-        switch self {
-        case .queued: 0
-        case .preparing: 0.02
-        case .transcribing(let p): max(0.02, p)
-        case .translating: 0.9
-        case .writing: 0.97
-        case .finished: 1
-        default: nil
-        }
-    }
 }
 
 @MainActor

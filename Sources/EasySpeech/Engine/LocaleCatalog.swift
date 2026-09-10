@@ -13,14 +13,6 @@ enum LocaleCatalog {
         let isInstalled: Bool
     }
 
-    static func supported() async -> [Locale] {
-        await SpeechTranscriber.supportedLocales
-    }
-
-    static func installed() async -> [Locale] {
-        await SpeechTranscriber.installedLocales
-    }
-
     /// All supported locales with a friendly name and install state, sorted for display.
     static func entries() async -> [Entry] {
         let supported = await SpeechTranscriber.supportedLocales
