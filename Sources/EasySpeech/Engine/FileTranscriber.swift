@@ -5,6 +5,7 @@ import Speech
 enum TranscriptionError: LocalizedError {
     case localeUnsupported(String)
     case noCompatibleFormat
+    case noSpeechFound(String)
     case cancelled
 
     var errorDescription: String? {
@@ -13,6 +14,8 @@ enum TranscriptionError: LocalizedError {
             "Apple's speech models don't support \(id) yet."
         case .noCompatibleFormat:
             "No compatible audio format was offered by the speech engine."
+        case .noSpeechFound(let language):
+            "No speech was found. The audio may be silent, or spoken in a language other than \(language)."
         case .cancelled:
             "Cancelled."
         }
@@ -112,6 +115,17 @@ struct FileTranscriber: Sendable {
 
         do {
             _ = try await analyzer.analyzeSequence(stream)
+
+            // On cancellation the input sequence stops early but `analyzeSequence` still
+            // returns normally, and `finalizeAndFinishThroughEndOfInput` then waits
+            // forever for an end of input that will never arrive. Tear the analyzer down
+            // instead — this is what made Stop hang a job rather than end it.
+            if Task.isCancelled {
+                await analyzer.cancelAndFinishNow()
+                _ = try? await collected
+                throw CancellationError()
+            }
+
             try await analyzer.finalizeAndFinishThroughEndOfInput()
         } catch {
             await analyzer.cancelAndFinishNow()
@@ -120,6 +134,12 @@ struct FileTranscriber: Sendable {
         }
 
         let segments = try await collected
+
+        // Succeeding with nothing is worse than failing: the user gets an empty file and
+        // no idea why. Say which of the two likely causes it is.
+        guard !segments.isEmpty else {
+            throw TranscriptionError.noSpeechFound(LocaleCatalog.displayName(for: locale))
+        }
 
         return Transcript(segments: segments,
                           localeIdentifier: locale.normalizedIdentifier)

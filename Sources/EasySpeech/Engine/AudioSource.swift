@@ -4,6 +4,7 @@ import Speech
 enum AudioSourceError: LocalizedError {
     case noAudioTrack
     case unreadable(String)
+    case damaged
     case bufferAllocationFailed
 
     var errorDescription: String? {
@@ -12,6 +13,9 @@ enum AudioSourceError: LocalizedError {
             "This file has no audio track."
         case .unreadable(let detail):
             detail
+        case .damaged:
+            // The caller always shows the filename alongside this, so don't repeat it.
+            "The file couldn't be opened. It may be empty, incomplete, or not really the format its name suggests."
         case .bufferAllocationFailed:
             "Could not allocate an audio buffer."
         }
@@ -42,8 +46,15 @@ enum AudioSource {
 
     static func duration(of url: URL) async throws -> TimeInterval {
         let asset = AVURLAsset(url: url)
-        let duration = try await asset.load(.duration)
-        return duration.isNumeric ? duration.seconds : 0
+        do {
+            let duration = try await asset.load(.duration)
+            return duration.isNumeric ? duration.seconds : 0
+        } catch {
+            // This is the first thing that touches the file, so a truncated or
+            // mislabelled one fails here — with an AVFoundation message like
+            // "Operation Stopped" that means nothing to anyone.
+            throw AudioSourceError.damaged
+        }
     }
 
     // MARK: - FFmpeg fallback
@@ -169,11 +180,25 @@ enum AudioSource {
             private func start() async throws {
                 let asset = AVURLAsset(url: url,
                                        options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
-                guard let track = try await asset.loadTracks(withMediaType: .audio).first else {
+
+                // AVFoundation reports a truncated or mislabelled file with messages like
+                // "Operation Stopped", which tells the user nothing.
+                let tracks: [AVAssetTrack]
+                do {
+                    tracks = try await asset.loadTracks(withMediaType: .audio)
+                } catch {
+                    throw AudioSourceError.damaged
+                }
+                guard let track = tracks.first else {
                     throw AudioSourceError.noAudioTrack
                 }
 
-                let reader = try AVAssetReader(asset: asset)
+                let reader: AVAssetReader
+                do {
+                    reader = try AVAssetReader(asset: asset)
+                } catch {
+                    throw AudioSourceError.damaged
+                }
 
                 // Ask the reader to resample and downmix straight into the analyzer's own
                 // format. That format is Int16 at 16 kHz today, but read it from `format`
