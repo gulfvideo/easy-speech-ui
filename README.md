@@ -86,6 +86,52 @@ Memory is flat regardless of length — a 3.6-hour file and a 30-second file bot
 
 ---
 
+## Install
+
+Download **`EasySpeech-1.0.0-macOS-arm64.dmg`** from the
+[latest release](https://github.com/gulfvideo/easy-speech-ui/releases/latest),
+open it, and drag EasySpeech to Applications. It's a 1.2 MB download.
+
+### First launch: macOS will block it
+
+EasySpeech isn't signed with an Apple Developer ID, so macOS will refuse to open it the
+first time with a message like *"Apple could not verify EasySpeech is free of malware."*
+This is expected for any independently distributed app that hasn't paid Apple's $99/yr
+developer fee — it is not a judgement about this app. To get past it:
+
+1. Try to open EasySpeech once, and let it be blocked.
+2. Open **System Settings › Privacy & Security**.
+3. Scroll down to the message about EasySpeech and click **Open Anyway**.
+4. Confirm.
+
+You only do this once.
+
+> On macOS 15 and later, right-clicking and choosing *Open* no longer bypasses this —
+> the Privacy & Security route above is the one that works.
+
+Prefer the terminal? This does the same thing:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/EasySpeech.app
+```
+
+### If you'd rather not trust a stranger's binary
+
+Fair. The whole app is ~2,900 lines of Swift with no dependencies — read it and build it
+yourself in about a minute:
+
+```bash
+git clone https://github.com/gulfvideo/easy-speech-ui.git
+cd easy-speech-ui
+./build.sh
+open build/EasySpeech.app
+```
+
+A locally built copy is signed with your own machine's ad-hoc signature and never
+quarantined, so none of the above applies.
+
+---
+
 ## Build
 
 ```bash
@@ -97,6 +143,12 @@ That's the whole process — no package manager, no dependencies to fetch. To in
 
 ```bash
 cp -R build/EasySpeech.app /Applications/
+```
+
+To build the distributable disk image:
+
+```bash
+./package.sh
 ```
 
 The build script ad-hoc signs the app so the microphone permission prompt works. To distribute it, set your signing identity:
