@@ -58,7 +58,7 @@ struct AppCommands: Commands {
 
         CommandGroup(replacing: .help) {
             Link("EasySpeech on GitHub",
-                 destination: URL(string: "https://github.com/")!)
+                 destination: URL(string: "https://github.com/gulfvideo/easy-speech-ui")!)
         }
     }
 }
