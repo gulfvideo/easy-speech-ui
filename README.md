@@ -1,0 +1,146 @@
+# EasySpeech
+
+<img src="EasySpeechArt/EasySpeech-1024.png" alt="EasySpeech" width="120" />
+
+A fast, native macOS transcription app built entirely on **Apple's on-device Speech framework**. No Whisper, no models to download and manage, no FFmpeg, no Electron.
+
+It's a rebuild of [EasyWhisperUI](https://github.com/mehtabmahir/easy-whisper-ui) — same job, same workflow, different engine.
+
+---
+
+## Why
+
+EasyWhisperUI is a great app, but its architecture carries weight: an Electron runtime, a compiled `whisper.cpp` binary, a bundled FFmpeg, and multi-gigabyte GGML models you download and pick between. On macOS 26, Apple ships `SpeechAnalyzer` / `SpeechTranscriber` — an on-device recognizer with no length limit, real word-level timestamps, and models the OS manages and shares with Dictation.
+
+That removes most of the moving parts:
+
+| | EasyWhisperUI | EasySpeech |
+|---|---|---|
+| Runtime | Electron (~200 MB) | Native Swift (~1 MB) |
+| Engine | whisper.cpp + Metal | Apple SpeechAnalyzer (Neural Engine) |
+| Models | You download & choose (75 MB – 3 GB) | OS-managed, shared with Dictation |
+| Audio conversion | FFmpeg → temp WAV on disk | AVFoundation, in-process, no temp file |
+| Startup | Electron boot | Instant |
+| Languages | ~100 | 45 |
+| Translation | Built into the model | Apple Translation framework |
+
+The honest trade-off is at the bottom of that table: **fewer languages**, and translation is a separate step. If you transcribe Icelandic, stay on Whisper. If you work in the 45 supported languages, this is faster, lighter, and better integrated.
+
+---
+
+## Features
+
+Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
+
+- **Batch queue** — drop in a pile of files, processed one at a time
+- **Live transcription** from the microphone, with in-progress text shown greyed until finalized
+- **Output formats** — `.txt`, `.srt`, `.vtt`
+- **Real word-level timestamps**, so subtitle cues are cut at natural pauses and balanced across two lines
+- **Translation** to 20+ languages, on-device, with timestamps preserved
+- **Drag & drop** anywhere in the window, onto the Dock icon, or via Finder's *Open With*
+- **Automatic format handling** — mp3, m4a, wav, aiff, flac, mp4, mov and more, no conversion step
+- **Optional FFmpeg fallback** for `.ogg`, `.opus`, `.mkv`, `.wma`
+- **Language models download on demand**, or pre-download them in Settings
+
+### Mac things it does properly
+
+- Full menu bar with real shortcuts — ⌘O open, ⌘R start, ⌘. stop, ⇧⌘L live, ⇧⌘E export
+- Contextual menus on every row; ⌫ removes a file
+- Rows are draggable back out to the Finder
+- Copy as plain text, with timestamps, or as SRT
+- Window size, sidebar width, inspector state and all options persist
+- Live transcription is a separate window, so it can sit beside a running batch
+- Full-text search inside a transcript
+- **Never overwrites** an existing file — appends " 2" the way the Finder does
+
+---
+
+## Performance
+
+Measured on this machine (Apple Silicon, macOS 26) against a **3 hour 38 minute** podcast MP3 — 13,114 seconds of two-host conversational speech:
+
+| | Result |
+|---|---|
+| Wall clock | **167 seconds** |
+| Speed | **78× realtime** |
+| CPU time | 20s user / 2.6s system |
+| Peak memory | **20.5 MB** |
+| Output | 4,590 segments · 39,665 words · 210 KB text |
+
+The gap between 167 seconds of wall clock and 20 seconds of CPU is the point: the Neural Engine does the recognition, so the machine stays responsive and cool while a batch runs.
+
+Memory is flat regardless of length — a 3.6-hour file and a 30-second file both sit around 20 MB, because audio is pulled on demand rather than decoded up front.
+
+---
+
+## Requirements
+
+- **macOS 26 or later** (this is where `SpeechAnalyzer` was introduced)
+- Apple Silicon recommended
+- Xcode 26+ command line tools to build
+
+---
+
+## Build
+
+```bash
+./build.sh
+open build/EasySpeech.app
+```
+
+That's the whole process — no package manager, no dependencies to fetch. To install:
+
+```bash
+cp -R build/EasySpeech.app /Applications/
+```
+
+The build script ad-hoc signs the app so the microphone permission prompt works. To distribute it, set your signing identity:
+
+```bash
+CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh
+```
+
+---
+
+## Project layout
+
+```
+Sources/EasySpeech/
+├── App/          @main entry, AppDelegate, menu commands
+├── Models/       Transcript, Job, AppSettings
+├── Engine/
+│   ├── AudioSource.swift        AVFoundation decode → PCM (pull-based)
+│   ├── FileTranscriber.swift    SpeechAnalyzer orchestration
+│   ├── LiveTranscriber.swift    Microphone capture
+│   ├── LocaleCatalog.swift      Language model install/reserve
+│   ├── TranslationService.swift Apple Translation framework
+│   └── JobQueue.swift           Sequential batch processing
+├── Export/       SRT / VTT / text writers
+└── Views/        SwiftUI interface
+
+EasySpeechArt/     Icon set — .icns, .iconset, asset catalog, SVG masters
+```
+
+### Two things worth knowing if you hack on this
+
+**The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat` returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you `nil` and a silently empty transcript. `AudioSource` reads the format's `streamDescription` and copies raw bytes, so it keeps working if Apple changes it.
+
+**Audio is pulled, not pushed.** An `AsyncStream` buffers without bound, and decoding runs far ahead of recognition — a 3.6-hour podcast decodes in about 12 seconds and parks ~405 MB of PCM in memory. `AudioSource.InputSequence` is a pull-based `AsyncSequence` that decodes inside `next()`, so the analyzer draws one buffer at a time and memory stays flat no matter how long the file is.
+
+---
+
+## Known limits
+
+- **45 languages**, not Whisper's ~100. Settings › Languages lists them.
+- **No custom models.** Apple manages the acoustic model; there is no `tiny`/`large-v3` choice and no way to load your own. If you need a specific Whisper model, use EasyWhisperUI.
+- **No `--arguments` box.** Nothing to pass them to.
+- **Punctuation is always on.** Apple gives no toggle, so the app doesn't pretend to offer one.
+- **Translation quality** is Apple's, not Whisper's — generally good for major languages, weaker for rare pairs.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+Credit to [mehtabmahir/easy-whisper-ui](https://github.com/mehtabmahir/easy-whisper-ui) for the original app and its interaction design.
