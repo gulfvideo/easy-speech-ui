@@ -28,7 +28,7 @@ final class JobQueue {
         let existing = Set(jobs.map(\.url))
         let fresh = urls
             .filter { !existing.contains($0) }
-            .filter { AudioSource.allExtensions.contains($0.pathExtension.lowercased()) }
+            .filter { AudioSource.supportedExtensions.contains($0.pathExtension.lowercased()) }
 
         jobs.append(contentsOf: fresh.map(Job.init(url:)))
         if !fresh.isEmpty { startIfIdle() }

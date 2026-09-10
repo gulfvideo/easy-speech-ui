@@ -13,7 +13,13 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT
 ARCH="$(uname -m)"
 VOLUME="EasySpeech $VERSION"
 DMG="$ROOT/build/EasySpeech-${VERSION}-macOS-${ARCH}.dmg"
-SCRATCH="$ROOT/build/scratch.dmg"
+
+# Finder records the backing image's path inside the volume's .DS_Store when it writes
+# the background alias, and that file ships to everyone who downloads the DMG. Building
+# the scratch image under a temp directory keeps the maintainer's home directory and
+# project layout out of the published artifact.
+SCRATCH_DIR="$(mktemp -d)"
+SCRATCH="$SCRATCH_DIR/scratch.dmg"
 
 echo "==> Building app"
 "$ROOT/build.sh" >/dev/null
@@ -24,7 +30,7 @@ swift "$ROOT/Packaging/MakeDMGBackground.swift" "$BACKGROUND" >/dev/null
 
 echo "==> Staging"
 STAGE="$(mktemp -d)"
-cleanup() { rm -rf "$STAGE"; }
+cleanup() { rm -rf "$STAGE" "$SCRATCH_DIR"; }
 trap cleanup EXIT
 mkdir -p "$STAGE/.background"
 cp "$BACKGROUND" "$STAGE/.background/background.tiff"
@@ -73,13 +79,29 @@ then
   echo "    (Grant Terminal automation access to Finder and re-run for the laid-out version.)"
 fi
 
+# Volume housekeeping macOS creates on a read-write mount; no reason to ship it.
+rm -rf "$MOUNT_POINT/.fseventsd" "$MOUNT_POINT/.Trashes" "$MOUNT_POINT/.TemporaryItems" 2>/dev/null || true
+
 sync
 
 echo "==> Compressing"
 hdiutil detach "$MOUNT_POINT" -quiet
 trap cleanup EXIT
 hdiutil convert "$SCRATCH" -format UDZO -imagekey zlib-level=9 -o "$DMG" -quiet
-rm -f "$SCRATCH"
+rm -rf "$SCRATCH_DIR"
+
+# Fail loudly rather than publish an image carrying the maintainer's paths.
+if hdiutil attach -nobrowse -readonly -quiet -mountpoint "$STAGE/verify" "$DMG" 2>/dev/null; then
+  LEAKS="$(strings -a "$STAGE/verify/.DS_Store" 2>/dev/null | grep -aoiE "/Users/[a-z0-9._-]+|$(whoami)" | sort -u || true)"
+  hdiutil detach "$STAGE/verify" -quiet 2>/dev/null || true
+  if [ -n "$LEAKS" ]; then
+    echo "REFUSING to ship: the disk image embeds local paths:"
+    echo "$LEAKS"
+    rm -f "$DMG"
+    exit 1
+  fi
+  echo "==> Verified: no local paths embedded"
+fi
 
 if [ -n "${CODESIGN_IDENTITY:-}" ]; then
   echo "==> Signing DMG as $CODESIGN_IDENTITY"
