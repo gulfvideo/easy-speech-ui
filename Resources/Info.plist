@@ -4,38 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
-	<key>CFBundleExecutable</key>
-	<string>EasySpeech</string>
-	<key>CFBundleIdentifier</key>
-	<string>com.easyspeech.ui</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>EasySpeech</string>
 	<key>CFBundleDisplayName</key>
 	<string>EasySpeech</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>26.0</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.productivity</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>NSSupportsAutomaticTermination</key>
-	<true/>
-	<key>NSSupportsSuddenTermination</key>
-	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>EasySpeech uses the microphone for live transcription. Audio is processed entirely on this Mac and never leaves it.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>EasySpeech uses Apple's on-device speech recognition to turn your audio into text. Nothing is sent to a server.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -54,21 +24,63 @@
 			</array>
 		</dict>
 		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>wav</string>
+				<string>mp3</string>
+				<string>m4a</string>
+				<string>aac</string>
+				<string>aiff</string>
+				<string>aif</string>
+				<string>caf</string>
+				<string>flac</string>
+				<string>mp4</string>
+				<string>m4v</string>
+				<string>mov</string>
+				<string>ogg</string>
+				<string>opus</string>
+				<string>mkv</string>
+				<string>webm</string>
+				<string>wma</string>
+				<string>avi</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>Media File</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
-			<key>CFBundleTypeExtensions</key>
-			<array>
-				<string>wav</string><string>mp3</string><string>m4a</string><string>aac</string>
-				<string>aiff</string><string>aif</string><string>caf</string><string>flac</string>
-				<string>mp4</string><string>m4v</string><string>mov</string><string>ogg</string>
-				<string>opus</string><string>mkv</string><string>webm</string><string>wma</string>
-				<string>avi</string>
-			</array>
 		</dict>
 	</array>
+	<key>CFBundleExecutable</key>
+	<string>EasySpeech</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.easyspeech.ui</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>EasySpeech</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EasySpeech uses the microphone for live transcription. Audio is processed entirely on this Mac and never leaves it.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>EasySpeech uses Apple's on-device speech recognition to turn your audio into text. Nothing is sent to a server.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<true/>
+	<key>NSSupportsSuddenTermination</key>
+	<true/>
 </dict>
 </plist>

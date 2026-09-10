@@ -37,6 +37,7 @@ under three minutes using about 20 MB of memory.
 - **Optional FFmpeg fallback** for `.ogg`, `.opus`, `.mkv`, `.wma`
 - **Language models download on demand**, or pre-download them in Settings
 - **Light, dark, or system appearance**
+- **Automatic updates** — checks GitHub daily, verifies the download against GitHub's published SHA-256, then installs and relaunches. Crucially, it does *not* make you repeat the Privacy & Security approval (see below).
 
 ### Mac things it does properly
 
@@ -84,9 +85,9 @@ Memory is flat regardless of length — a 3.6-hour file and a 30-second file bot
 
 ## Install
 
-Download **`EasySpeech-1.0.0-macOS-arm64.dmg`** from the
+Download the DMG from the
 [latest release](https://github.com/gulfvideo/easy-speech-ui/releases/latest),
-open it, and drag EasySpeech to Applications. It's a 1.2 MB download.
+open it, and drag EasySpeech to Applications. It's a ~1.2 MB download.
 
 ### First launch: macOS will block it
 
@@ -125,6 +126,36 @@ open build/EasySpeech.app
 
 A locally built copy is signed with your own machine's ad-hoc signature and never
 quarantined, so none of the above applies.
+
+---
+
+## Updates
+
+EasySpeech checks its GitHub releases once a day and offers anything newer. Choosing
+**Update and Relaunch** downloads the disk image, verifies it, swaps the app in place and
+reopens it. There's a Check Now button and an off switch in **Settings › Updates**.
+
+### Why an update doesn't make you redo the security steps
+
+macOS shows the "unidentified developer" prompt for apps carrying the
+`com.apple.quarantine` attribute, which browsers and Mail attach to anything they
+download. `URLSession` doesn't attach it, and EasySpeech doesn't opt in via
+`LSFileQuarantineEnabled` — so an update the app fetches for itself arrives unquarantined
+and simply launches. The approval you gave on first install is never asked for again. The
+installer strips the attribute anyway, in case that ever changes.
+
+### What's checked before an update is installed
+
+Without a Developer ID there's no signing identity to pin, so verification is layered:
+
+- HTTPS, to a repository path compiled into the app rather than a preference
+- the **SHA-256 that GitHub publishes for the asset**, recomputed over the download
+- the unpacked bundle must identify itself as `com.easyspeech.ui`
+- `codesign --verify --deep` must pass on the unpacked app
+
+Any failure discards the download instead of installing it. The swap moves the old bundle
+aside first and restores it if the replacement fails, so a bad update can't leave you
+without a working app.
 
 ---
 

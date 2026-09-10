@@ -110,6 +110,15 @@ final class AppSettings {
         defaults.bool(forKey: "showMenuBarExtra")
     }
 
+    // MARK: Updates
+
+    var automaticUpdateChecks: Bool {
+        didSet { defaults.set(automaticUpdateChecks, forKey: "automaticUpdateChecks") }
+    }
+    var lastUpdateCheck: Date? {
+        didSet { defaults.set(lastUpdateCheck, forKey: "lastUpdateCheck") }
+    }
+
     // MARK: Translation
 
     var translate: Bool {
@@ -144,7 +153,8 @@ final class AppSettings {
             "translate": false,
             "outputLocation": OutputLocation.alongsideSource.rawValue,
             "translationTarget": "en",
-            "appearance": AppAppearance.system.rawValue
+            "appearance": AppAppearance.system.rawValue,
+            "automaticUpdateChecks": true
         ])
 
         localeIdentifier = defaults.string(forKey: "localeIdentifier")
@@ -161,6 +171,8 @@ final class AppSettings {
         openWhenDone = defaults.bool(forKey: "openWhenDone")
         translate = defaults.bool(forKey: "translate")
         appearance = AppAppearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
+        automaticUpdateChecks = defaults.bool(forKey: "automaticUpdateChecks")
+        lastUpdateCheck = defaults.object(forKey: "lastUpdateCheck") as? Date
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"
     }
 }
