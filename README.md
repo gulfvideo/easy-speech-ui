@@ -133,7 +133,10 @@ quarantined, so none of the above applies.
 
 EasySpeech checks its GitHub releases once a day and offers anything newer. Choosing
 **Update and Relaunch** downloads the disk image, verifies it, swaps the app in place and
-reopens it. There's a Check Now button and an off switch in **Settings › Updates**.
+reopens it — typically in under two seconds. There's a Check Now button and an off switch
+in **Settings › Updates**.
+
+![The update sheet](docs/update-sheet.png)
 
 ### Why an update doesn't make you redo the security steps
 
@@ -253,6 +256,14 @@ no matter how long the file is.
 - **Translation quality** is Apple's — generally good for major languages, weaker for rare pairs.
 
 ---
+
+## Support
+
+EasySpeech is free, has no ads, collects nothing and never will. If it saved you some
+time, you're welcome to [buy me a coffee](https://buymeacoffee.com/gulfvideo) — entirely
+optional, and it doesn't unlock anything, because there's nothing locked.
+
+<a href="https://buymeacoffee.com/gulfvideo"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black" alt="Buy me a coffee" height="34"></a>
 
 ## License
 
