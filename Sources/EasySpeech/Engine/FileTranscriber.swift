@@ -130,15 +130,16 @@ struct FileTranscriber: Sendable {
             }
 
             let attributed = result.text
-            let text = String(attributed.characters).trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !text.isEmpty else { continue }
+            let raw = String(attributed.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty else { continue }
+            let text = SpokenNumbers.polish(raw)
 
             var words: [TimedWord] = []
             for run in attributed.runs {
                 guard let range = run.audioTimeRange else { continue }
                 let fragment = String(attributed[run.range].characters)
                 guard !fragment.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
-                words.append(TimedWord(text: fragment,
+                words.append(TimedWord(text: SpokenNumbers.polish(fragment),
                                        start: range.start.seconds,
                                        end: range.end.seconds))
             }

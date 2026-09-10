@@ -19,12 +19,22 @@ struct SettingsView: View {
 
 struct GeneralSettings: View {
     @Environment(AppSettings.self) private var settings
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
     var body: some View {
         @Bindable var settings = settings
         Form {
+            Section("Appearance") {
+                Picker("Appearance", selection: $settings.appearance) {
+                    ForEach(AppAppearance.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
             Section("Menu Bar") {
-                Toggle("Show EasySpeech in the menu bar", isOn: $settings.showMenuBarExtra)
+                Toggle("Show EasySpeech in the menu bar", isOn: $showMenuBarExtra)
                 Text("Gives you dictation from anywhere. While it's showing, closing every window leaves EasySpeech running in the background.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

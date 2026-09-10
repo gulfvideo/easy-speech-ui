@@ -57,16 +57,22 @@ struct ContentView: View {
         return done > 0 ? "\(done) transcribed" : "Ready"
     }
 
+    /// macOS 26 fuses adjacent toolbar items into one shared-background capsule. Three
+    /// unlabelled glyphs in a single pill read as one mystery segmented control, so the
+    /// action buttons carry titles and each group gets its own background.
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button {
                 FilePicker.presentAndAdd(to: queue)
             } label: {
-                Label("Open", systemImage: "plus")
+                Label("Add Files", systemImage: "plus")
             }
             .help("Add audio or video files (⌘O)")
         }
+        .sharedBackgroundVisibility(.hidden)
+
+        ToolbarSpacer(.fixed, placement: .primaryAction)
 
         ToolbarItem(placement: .primaryAction) {
             if queue.isProcessing {
@@ -75,6 +81,7 @@ struct ContentView: View {
                 } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
+                .labelStyle(.titleAndIcon)
                 .help("Stop transcribing (⌘.)")
             } else {
                 Button {
@@ -82,6 +89,7 @@ struct ContentView: View {
                 } label: {
                     Label("Start", systemImage: "play.fill")
                 }
+                .labelStyle(.titleAndIcon)
                 .disabled(queue.pendingCount == 0)
                 .help("Start the queue (⌘R)")
             }
@@ -93,14 +101,19 @@ struct ContentView: View {
             } label: {
                 Label("Live", systemImage: "mic.fill")
             }
+            .labelStyle(.titleAndIcon)
             .help("Live microphone transcription (⇧⌘L)")
         }
 
-        ToolbarItem(placement: .automatic) {
+        ToolbarSpacer(.flexible, placement: .primaryAction)
+
+        ToolbarItem(placement: .primaryAction) {
             LanguagePicker()
         }
 
-        ToolbarItem(placement: .automatic) {
+        ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(placement: .primaryAction) {
             Button {
                 showInspector.toggle()
             } label: {
