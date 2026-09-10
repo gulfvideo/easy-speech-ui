@@ -4,6 +4,7 @@ import SwiftUI
 /// The sheet shown when an update is available or being installed.
 struct UpdateSheet: View {
     @Environment(UpdateController.self) private var updates
+    @Environment(JobQueue.self) private var queue
     @Environment(\.dismiss) private var dismiss
 
     let update: AvailableUpdate
@@ -29,7 +30,7 @@ struct UpdateSheet: View {
             Divider()
 
             ScrollView {
-                Text(LocalizedStringKey(update.notes.isEmpty ? "No release notes." : update.notes))
+                Text(LocalizedStringKey(Self.tidy(update.notes)))
                     .font(.callout)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,17 +71,39 @@ struct UpdateSheet: View {
             .padding(16)
 
         default:
-            HStack(spacing: 12) {
-                Button("Release Notes") { NSWorkspace.shared.open(update.releasePage) }
-                Spacer()
-                Button("Not Now") { updates.dismiss(); dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Update and Relaunch") { updates.install(update) }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+            VStack(alignment: .leading, spacing: 10) {
+                if queue.isProcessing {
+                    Label("Finish transcribing first — updating quits the app.",
+                          systemImage: "exclamationmark.circle")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 12) {
+                    Button("Release Notes") { NSWorkspace.shared.open(update.releasePage) }
+                    Spacer()
+                    Button("Not Now") { updates.dismiss(); dismiss() }
+                        .keyboardShortcut(.cancelAction)
+                    Button("Update and Relaunch") { updates.install(update) }
+                        .keyboardShortcut(.defaultAction)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(queue.isProcessing)
+                }
             }
             .padding(16)
         }
+    }
+
+    /// SwiftUI renders bold and links in a LocalizedStringKey but not headings, so the
+    /// "##" markers leaked into the sheet. Promote them to bold lines instead.
+    static func tidy(_ notes: String) -> String {
+        guard !notes.isEmpty else { return "No release notes." }
+        return notes.split(separator: "\n", omittingEmptySubsequences: false)
+            .map { line -> String in
+                guard line.hasPrefix("#") else { return String(line) }
+                let text = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
+                return text.isEmpty ? "" : "**\(text)**"
+            }
+            .joined(separator: "\n")
     }
 
     private var byteLabel: String {
