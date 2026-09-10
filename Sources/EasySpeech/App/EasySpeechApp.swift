@@ -10,6 +10,11 @@ struct EasySpeechApp: App {
     @State private var live = LiveTranscriber()
     @State private var settings = AppSettings.shared
 
+    /// The MenuBarExtra binding must be stable across scene-body re-evaluations.
+    /// Deriving one from the observable settings object inline caused the status item
+    /// to be torn down whenever unrelated state changed.
+    @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
+
     var body: some Scene {
         Window("EasySpeech", id: "main") {
             ContentView()
@@ -34,7 +39,7 @@ struct EasySpeechApp: App {
                 .environment(settings)
         }
 
-        MenuBarExtra(isInserted: Bindable(settings).showMenuBarExtra) {
+        MenuBarExtra(isInserted: $showMenuBarExtra) {
             MenuBarView()
                 .environment(queue)
                 .environment(live)
@@ -53,6 +58,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// With the status item showing, closing every window leaves the app running the way
     /// a menu bar utility should. Without it, the app has no UI left, so it quits.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        MainActor.assumeIsolated { AppSettings.shared.applyAppearance() }
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         MainActor.assumeIsolated { !AppSettings.shared.showMenuBarExtra }
     }

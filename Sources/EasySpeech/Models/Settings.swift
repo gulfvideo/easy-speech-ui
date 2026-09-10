@@ -1,5 +1,29 @@
+import AppKit
 import Foundation
 import Observation
+
+enum AppAppearance: String, CaseIterable, Identifiable, Sendable {
+    case system, light, dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: "Match System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    /// nil hands control back to the system setting.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
+    }
+}
 
 enum OutputLocation: String, CaseIterable, Identifiable, Sendable {
     case alongsideSource
@@ -39,6 +63,19 @@ final class AppSettings {
         didSet { defaults.set(censorProfanity, forKey: "censorProfanity") }
     }
 
+    /// Applied to the whole app, so window chrome and menus follow it too — not just
+    /// the SwiftUI hierarchy the way `preferredColorScheme` would.
+    var appearance: AppAppearance {
+        didSet {
+            defaults.set(appearance.rawValue, forKey: "appearance")
+            applyAppearance()
+        }
+    }
+
+    func applyAppearance() {
+        NSApp?.appearance = appearance.nsAppearance
+    }
+
     // MARK: Output
 
     var writeText: Bool {
@@ -67,8 +104,10 @@ final class AppSettings {
     }
 
     /// Keeps the status item in the menu bar, and keeps the app alive without windows.
+    /// Owned by `@AppStorage` in the App and Settings scenes — read here, never cached,
+    /// so the AppDelegate always sees the current value.
     var showMenuBarExtra: Bool {
-        didSet { defaults.set(showMenuBarExtra, forKey: "showMenuBarExtra") }
+        defaults.bool(forKey: "showMenuBarExtra")
     }
 
     // MARK: Translation
@@ -104,7 +143,8 @@ final class AppSettings {
             "censorProfanity": false,
             "translate": false,
             "outputLocation": OutputLocation.alongsideSource.rawValue,
-            "translationTarget": "en"
+            "translationTarget": "en",
+            "appearance": AppAppearance.system.rawValue
         ])
 
         localeIdentifier = defaults.string(forKey: "localeIdentifier")
@@ -118,9 +158,9 @@ final class AppSettings {
             ?? .alongsideSource
         customOutputPath = defaults.string(forKey: "customOutputPath") ?? ""
         revealWhenDone = defaults.bool(forKey: "revealWhenDone")
-        showMenuBarExtra = defaults.bool(forKey: "showMenuBarExtra")
         openWhenDone = defaults.bool(forKey: "openWhenDone")
         translate = defaults.bool(forKey: "translate")
+        appearance = AppAppearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"
     }
 }

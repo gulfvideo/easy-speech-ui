@@ -176,7 +176,9 @@ final class LiveTranscriber {
     private func consume(_ transcriber: SpeechTranscriber) async {
         do {
             for try await result in transcriber.results {
-                let text = String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+                let text = SpokenNumbers.polish(
+                    String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+                )
 
                 if result.isFinal {
                     volatileText = ""
@@ -188,7 +190,7 @@ final class LiveTranscriber {
                         guard let range = run.audioTimeRange else { continue }
                         let fragment = String(result.text[run.range].characters)
                         guard !fragment.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
-                        words.append(TimedWord(text: fragment,
+                        words.append(TimedWord(text: SpokenNumbers.polish(fragment),
                                                start: range.start.seconds,
                                                end: range.end.seconds))
                     }

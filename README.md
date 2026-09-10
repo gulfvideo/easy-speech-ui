@@ -37,6 +37,8 @@ Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 - **Menu bar dictation** — start from the status item, talk, stop, and the text is already on your clipboard
 - **Output formats** — `.txt`, `.srt`, `.vtt`
 - **Real word-level timestamps**, so subtitle cues are cut at natural pauses and balanced across two lines
+- **Readable numbers** — Apple's recognizer emits "1000000s of people" and "a 1000 years old"; EasySpeech repairs those to "millions of people" and "a thousand years old" without touching years, phone numbers or ordinary counts
+- **Light, dark, or system appearance**
 - **Translation** to 20+ languages, on-device, with timestamps preserved
 - **Drag & drop** anywhere in the window, onto the Dock icon, or via Finder's *Open With*
 - **Automatic format handling** — mp3, m4a, wav, aiff, flac, mp4, mov and more, no conversion step
@@ -123,9 +125,32 @@ Sources/EasySpeech/
 EasySpeechArt/     Icon set — .icns, .iconset, menu bar template, SVG masters
 ```
 
-### Two things worth knowing if you hack on this
+### Accuracy
+
+Checked against EasyWhisperUI (whisper.cpp, `medium.en`) on the same 3 hour 38 minute
+podcast — two completely independent engines on hard, fast, overlapping radio talk:
+
+| | Result |
+|---|---|
+| Word count | 39,821 vs 39,661 — **0.4% apart** |
+| Word-level agreement | **89.2%** |
+| Longest verbatim agreement | 116 consecutive identical words |
+| Timeline coverage | first cue 0.0s, last ends 13,113.1s of 13,114s |
+| Gaps over 20s | **0** |
+| Hallucination loops | none in either (Apple had slightly fewer) |
+
+Where they disagree it's mostly proper nouns and genuinely unclear audio, and the two
+trade wins about evenly. One consistent stylistic difference: Apple normalizes to formal
+English ("going to"), Whisper stays verbatim ("gonna").
+
+### Three things worth knowing if you hack on this
 
 **The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat` returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you `nil` and a silently empty transcript. `AudioSource` reads the format's `streamDescription` and copies raw bytes, so it keeps working if Apple changes it.
+
+**Apple's inverse text normalization is very literal.** Spoken "millions" comes back as
+the digit string `1000000s`, "twenty million" as `20000000`, "a thousand years old" as
+`a 1000 years old`. `SpokenNumbers` repairs the unambiguous cases; see its rules before
+adding more, because years, phone numbers, prices and percentages must stay untouched.
 
 **Audio is pulled, not pushed.** An `AsyncStream` buffers without bound, and decoding runs far ahead of recognition — a 3.6-hour podcast decodes in about 12 seconds and parks ~405 MB of PCM in memory. `AudioSource.InputSequence` is a pull-based `AsyncSequence` that decodes inside `next()`, so the analyzer draws one buffer at a time and memory stays flat no matter how long the file is.
 
