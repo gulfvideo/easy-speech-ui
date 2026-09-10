@@ -46,6 +46,12 @@ struct AppCommands: Commands {
 
             Divider()
 
+            // Also in the Options inspector, but the menu keeps it reachable with the
+            // inspector closed — and gives it keyboard navigation.
+            LanguagePicker()
+
+            Divider()
+
             Button("Clear Finished") { queue.clearFinished() }
                 .disabled(!queue.jobs.contains { $0.state.isTerminal })
         }

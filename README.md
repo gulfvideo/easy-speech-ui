@@ -48,6 +48,7 @@ Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 ### Mac things it does properly
 
 - Full menu bar with real shortcuts — ⌘O open, ⌘R start, ⌘. stop, ⇧⌘L live, ⇧⌘E export
+- Toolbar holds actions only; settings live in the Options inspector, and Language is also in the Transcribe menu so it's reachable with the inspector closed
 - Contextual menus on every row; ⌫ removes a file
 - Rows are draggable back out to the Finder
 - Copy as plain text, with timestamps, or as SRT

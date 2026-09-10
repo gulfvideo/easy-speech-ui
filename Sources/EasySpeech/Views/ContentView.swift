@@ -21,12 +21,13 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: sidebarWidth, max: 420)
         } detail: {
             TranscriptView(job: selectedJob)
+                .toolbar { contentToolbar }
         }
         .inspector(isPresented: $showInspector) {
             InspectorView()
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 380)
+                .toolbar { inspectorToolbar }
         }
-        .toolbar { toolbarContent }
         .dropDestination(for: URL.self) { urls, _ in
             queue.add(urls) > 0
         } isTargeted: { isDropTargeted = $0 }
@@ -57,11 +58,17 @@ struct ContentView: View {
         return done > 0 ? "\(done) transcribed" : "Ready"
     }
 
-    /// macOS 26 fuses adjacent toolbar items into one shared-background capsule. Three
-    /// unlabelled glyphs in a single pill read as one mystery segmented control, so the
-    /// action buttons carry titles and each group gets its own background.
+    /// Content actions attach to the detail column, not to the split view, so they stay
+    /// inside the content region instead of right-aligning across the whole window and
+    /// spilling over the inspector's divider when it's open. That region is narrow when
+    /// the inspector is showing, so it holds actions only — the language picker lives in
+    /// the inspector and in the Transcribe menu, both of which suit it better anyway.
+    ///
+    /// macOS 26 also fuses adjacent toolbar items into one shared-background capsule.
+    /// Three unlabelled glyphs in a single pill read as one mystery segmented control,
+    /// so the action buttons carry titles and Add Files gets its own background.
     @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
+    private var contentToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button {
                 FilePicker.presentAndAdd(to: queue)
@@ -105,14 +112,11 @@ struct ContentView: View {
             .help("Live microphone transcription (⇧⌘L)")
         }
 
-        ToolbarSpacer(.flexible, placement: .primaryAction)
+    }
 
-        ToolbarItem(placement: .primaryAction) {
-            LanguagePicker()
-        }
-
-        ToolbarSpacer(.fixed, placement: .primaryAction)
-
+    /// Lives on the inspector so macOS keeps it pinned to the trailing edge.
+    @ToolbarContentBuilder
+    private var inspectorToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Button {
                 showInspector.toggle()
@@ -131,7 +135,9 @@ struct ContentView: View {
 
 /// Toolbar language selector, showing which models are already on the Mac.
 struct LanguagePicker: View {
-    @Environment(AppSettings.self) private var settings
+    /// Bound to the shared object rather than the environment so this works inside a
+    /// menu-bar command, which doesn't inherit the window's environment.
+    @State private var settings = AppSettings.shared
     @State private var entries: [LocaleCatalog.Entry] = []
 
     /// The current selection is always present as an option. A SwiftUI Picker whose
@@ -158,11 +164,9 @@ struct LanguagePicker: View {
                     .tag(entry.identifier)
             }
         } label: {
-            Label("Language", systemImage: "globe")
+            Text("Language")
         }
         .pickerStyle(.menu)
-        .labelStyle(.titleAndIcon)
-        .frame(minWidth: 170)
         .help("Spoken language. ⤓ marks languages Apple will download on first use.")
         .task {
             entries = await LocaleCatalog.entries()
