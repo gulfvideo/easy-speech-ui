@@ -4,6 +4,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(JobQueue.self) private var queue
     @Environment(AppSettings.self) private var settings
+    @Environment(UpdateController.self) private var updates
     @Environment(\.openWindow) private var openWindow
 
     @State private var selection: Job.ID?
@@ -43,6 +44,10 @@ struct ContentView: View {
         .navigationSubtitle(subtitle)
         .onReceive(NotificationCenter.default.publisher(for: .revealOutput)) { _ in
             revealSelected()
+        }
+        .sheet(item: Bindable(updates).pendingPrompt) { update in
+            UpdateSheet(update: update)
+                .environment(updates)
         }
     }
 

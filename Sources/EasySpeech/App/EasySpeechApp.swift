@@ -8,6 +8,7 @@ struct EasySpeechApp: App {
 
     @State private var queue = JobQueue()
     @State private var live = LiveTranscriber()
+    @State private var updates = UpdateController()
     @State private var settings = AppSettings.shared
 
     /// The MenuBarExtra binding must be stable across scene-body re-evaluations.
@@ -21,10 +22,14 @@ struct EasySpeechApp: App {
                 .environment(queue)
                 .environment(live)
                 .environment(settings)
-                .onAppear { delegate.queue = queue }
+                .environment(updates)
+                .onAppear {
+                    delegate.queue = queue
+                    updates.checkInBackground()
+                }
         }
         .defaultSize(width: 1000, height: 680)
-        .commands { AppCommands(queue: queue, live: live) }
+        .commands { AppCommands(queue: queue, live: live, updates: updates) }
 
         Window("Live Transcription", id: "live") {
             LiveView()
@@ -37,6 +42,7 @@ struct EasySpeechApp: App {
         Settings {
             SettingsView()
                 .environment(settings)
+                .environment(updates)
         }
 
         MenuBarExtra(isInserted: $showMenuBarExtra) {

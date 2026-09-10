@@ -7,10 +7,16 @@ import UniformTypeIdentifiers
 struct AppCommands: Commands {
     let queue: JobQueue
     let live: LiveTranscriber
+    let updates: UpdateController
 
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { updates.check(userInitiated: true) }
+                .disabled(updates.isBusy)
+        }
+
         CommandGroup(replacing: .newItem) {
             Button("Open…") { FilePicker.presentAndAdd(to: queue) }
                 .keyboardShortcut("o", modifiers: .command)

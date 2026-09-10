@@ -12,8 +12,10 @@ struct SettingsView: View {
                 .tabItem { Label("Languages", systemImage: "globe") }
             TranslationSettings()
                 .tabItem { Label("Translation", systemImage: "character.bubble") }
+            UpdateSettings()
+                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
         }
-        .frame(width: 480, height: 380)
+        .frame(width: 500, height: 420)
     }
 }
 
