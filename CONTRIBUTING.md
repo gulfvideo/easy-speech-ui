@@ -17,18 +17,22 @@ CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh
 
 ```
 Sources/EasySpeech/
-├── App/          @main entry, AppDelegate, menu commands
-├── Models/       Transcript, Job, AppSettings
+├── App/          @main entry (app or CLI), AppDelegate, menu commands
+├── CLI/          Headless transcription for scripts and Shortcuts
+├── Models/       Transcript, Job, Correction, AppSettings
 ├── Engine/
-│   ├── AudioSource.swift        AVFoundation decode → PCM (pull-based)
-│   ├── FileTranscriber.swift    SpeechAnalyzer orchestration
-│   ├── LiveTranscriber.swift    Microphone capture
-│   ├── LocaleCatalog.swift      Language model install/reserve
-│   ├── TranslationService.swift Apple Translation framework
-│   ├── UpdateChecker.swift      GitHub release discovery
-│   ├── Updater.swift            Download, verify, swap, relaunch
-│   └── JobQueue.swift           Sequential batch processing
-├── Export/       SRT / VTT / text writers, number repair
+│   ├── AudioSource.swift            AVFoundation decode → PCM (pull-based)
+│   ├── FileTranscriber.swift        SpeechAnalyzer orchestration
+│   ├── LiveTranscriber.swift        Microphone capture
+│   ├── LocaleCatalog.swift          Language model install/reserve
+│   ├── AnalysisContextFactory.swift Contextual strings for recognition
+│   ├── TranslationService.swift     Apple Translation framework
+│   ├── FolderWatcher.swift          Watched-folder intake
+│   ├── TranscriptPlayer.swift       Click-a-line playback
+│   ├── UpdateChecker.swift          GitHub release discovery
+│   ├── Updater.swift                Download, verify, swap, relaunch
+│   └── JobQueue.swift               Sequential batch processing
+├── Export/       SRT / VTT / text writers, number repair, corrections
 └── Views/        SwiftUI interface
 
 EasySpeechArt/    Icon set — .icns, .iconset, menu bar template, SVG masters

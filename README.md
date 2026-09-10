@@ -4,7 +4,7 @@
 
 Fast, native macOS transcription powered entirely by **Apple's on-device Speech framework**.
 
-No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac. The whole app is a 1.2 MB download with zero dependencies.
+No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac. The whole app is a 1.9 MB download with zero dependencies.
 
 ![EasySpeech](docs/screenshot.png)
 
@@ -53,7 +53,7 @@ EasySpeech isn't signed with an Apple Developer ID, so macOS refuses to open it 
 
 You only do this once — updates never ask again. On macOS 15+, right-click → *Open* no longer works for this; the Privacy & Security route does.
 
-Prefer to build it yourself? It's ~2,900 lines of Swift with no dependencies:
+Prefer to build it yourself? It's ~4,600 lines of Swift with no dependencies:
 
 ```bash
 git clone https://github.com/gulfvideo/easy-speech-ui.git
