@@ -73,6 +73,11 @@ final class LiveTranscriber {
 
             let analyzer = SpeechAnalyzer(modules: [transcriber])
             self.analyzer = analyzer
+
+            if let context = AnalysisContextFactory.make(from: AppSettings.shared.vocabulary) {
+                try await analyzer.setContext(context)
+            }
+
             try await analyzer.prepareToAnalyze(in: analyzerFormat)
 
             resultsTask = Task { [weak self] in
@@ -177,8 +182,11 @@ final class LiveTranscriber {
     private func consume(_ transcriber: SpeechTranscriber) async {
         do {
             for try await result in transcriber.results {
-                let text = SpokenNumbers.polish(
-                    String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+                let text = VocabularyCorrector.correct(
+                    SpokenNumbers.polish(
+                        String(result.text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+                    ),
+                    using: AppSettings.shared.corrections
                 )
 
                 if result.isFinal {

@@ -7,6 +7,7 @@ struct TranscriptView: View {
 
     @AppStorage("transcriptShowTimestamps") private var showTimestamps = false
     @State private var searchText = ""
+    @State private var player = TranscriptPlayer()
 
     var body: some View {
         Group {
@@ -25,6 +26,9 @@ struct TranscriptView: View {
         .onReceive(NotificationCenter.default.publisher(for: .exportTranscript)) { _ in
             if let job, !job.transcript.isEmpty { export(job) }
         }
+        // Selecting a different file shouldn't leave the previous one playing.
+        .onChange(of: job?.id) { player.unload() }
+        .onDisappear { player.unload() }
     }
 
     // MARK: - States
@@ -57,7 +61,12 @@ struct TranscriptView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
                     ForEach(filteredSegments(job)) { segment in
-                        SegmentRow(segment: segment, showTimestamp: showTimestamps)
+                        SegmentRow(segment: segment,
+                                   showTimestamp: showTimestamps,
+                                   isActive: activeSegment == segment.id)
+                            .contentShape(.rect)
+                            .onTapGesture { player.play(job.url, at: segment.start) }
+                            .help("Play from \(SubtitleWriter.shortTimecode(segment.start))")
                     }
                 }
                 .padding(20)
@@ -94,9 +103,34 @@ struct TranscriptView: View {
         }
     }
 
+    private var activeSegment: TranscriptSegment.ID? {
+        guard let job, player.url == job.url else { return nil }
+        return player.activeSegmentID(in: job.transcript)
+    }
+
     private func statusBar(_ job: Job) -> some View {
         HStack(spacing: 12) {
-            Label(SubtitleWriter.shortTimecode(job.transcript.totalDuration), systemImage: "timer")
+            Button {
+                if player.url == job.url {
+                    player.togglePlayPause()
+                } else {
+                    player.play(job.url, at: 0)
+                }
+            } label: {
+                Image(systemName: player.isPlaying && player.url == job.url
+                      ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title3)
+            }
+            .buttonStyle(.plain)
+            .help("Play the original audio — or click any line to hear it")
+            .disabled(!FileManager.default.fileExists(atPath: job.url.path))
+
+            if player.url == job.url, player.duration > 0 {
+                Text("\(SubtitleWriter.shortTimecode(player.currentTime)) / \(SubtitleWriter.shortTimecode(player.duration))")
+                    .font(.callout.monospacedDigit())
+            } else {
+                Label(SubtitleWriter.shortTimecode(job.transcript.totalDuration), systemImage: "timer")
+            }
             Label("\(job.transcript.plainText.split(separator: " ").count) words", systemImage: "text.word.spacing")
             if let speed = job.speedFactor, speed > 0 {
                 Label(String(format: "%.0f× realtime", speed), systemImage: "bolt.fill")
@@ -155,13 +189,14 @@ struct TranscriptView: View {
 struct SegmentRow: View {
     let segment: TranscriptSegment
     let showTimestamp: Bool
+    var isActive = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             if showTimestamp {
                 Text(SubtitleWriter.shortTimecode(segment.start))
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isActive ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
                     .frame(width: 54, alignment: .trailing)
             }
             Text(segment.text)
@@ -169,5 +204,12 @@ struct SegmentRow: View {
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isActive ? Color.accentColor.opacity(0.12) : .clear)
+        }
+        .animation(.easeOut(duration: 0.15), value: isActive)
     }
 }

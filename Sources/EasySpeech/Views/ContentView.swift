@@ -45,6 +45,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .revealOutput)) { _ in
             revealSelected()
         }
+        .onAppear { queue.syncFolderWatch() }
+        .onChange(of: settings.watchFolderEnabled) { queue.syncFolderWatch() }
+        .onChange(of: settings.watchFolderPath) { queue.syncFolderWatch() }
         .sheet(item: Bindable(updates).pendingPrompt) { update in
             UpdateSheet(update: update)
                 .environment(updates)

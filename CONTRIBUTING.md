@@ -59,6 +59,25 @@ unambiguous cases. Read its rules before adding more: years, phone numbers, pric
 dates must stay untouched, and it runs on every word of every transcript, so it bails early on text
 containing no digits.
 
+**Contextual strings currently do nothing.** `AnalysisContext.contextualStrings` is
+supplied with the user's corrected spellings and the analyzer demonstrably retains them —
+`setContext` succeeds and the values read back — but on the macOS 26 builds tested the
+recognizer produces byte-identical output with and without them. They're still passed in
+case that changes. `VocabularyCorrector` is what actually fixes names today, and it is
+deliberately exact rather than fuzzy: an edit-distance version fixed the real mis-hearings
+but also rewrote "The weather institute" into a listed name and swallowed the word "with".
+For captioning, a confident wrong correction is worse than a missed one.
+
+**The app binary is also the CLI.** `CommandLineRunner.shouldHandle` decides, and treats
+*any* real argument as a command line invocation. It deliberately does not check `isatty`:
+scripts, CI and Shortcuts all pipe their output, and launching a GUI there hangs the
+caller. Launch Services delivers documents by Apple event, never argv, so a file path in
+argv can only have come from a shell.
+
+**A watched folder can be silently unreadable.** macOS gates Desktop, Documents, Downloads
+and iCloud Drive behind TCC, and a denied directory read looks exactly like an empty
+folder. `FolderWatcher` probes readability up front and surfaces the reason.
+
 ## Updates
 
 `Updater` downloads the release DMG, verifies it, swaps the bundle and relaunches.

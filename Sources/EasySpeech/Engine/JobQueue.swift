@@ -16,10 +16,31 @@ final class JobQueue {
     private(set) var modelDownload: Progress?
 
     private var worker: Task<Void, Never>?
+    private var watcher: FolderWatcher?
     private let settings = AppSettings.shared
 
     var pendingCount: Int { jobs.filter { !$0.state.isTerminal }.count }
     var activeJob: Job? { jobs.first { $0.state.isActive } }
+
+    /// Starts, stops or re-points the watched folder to match the current settings.
+    func syncFolderWatch() {
+        guard let folder = settings.watchFolderURL else {
+            watcher?.stop()
+            watcher = nil
+            return
+        }
+        if watcher?.watchedURL == folder { return }
+
+        let watcher = self.watcher ?? FolderWatcher { [weak self] urls in
+            self?.add(urls)
+        }
+        self.watcher = watcher
+        watcher.start(watching: folder)
+    }
+
+    var watchedFolder: URL? { watcher?.watchedURL }
+    /// Non-nil when the watched folder can't be read, so the UI can say why.
+    var watchProblem: String? { watcher?.accessProblem }
 
     // MARK: - Queue management
 
@@ -96,7 +117,9 @@ final class JobQueue {
 
             let options = FileTranscriber.Options(
                 locale: settings.locale,
-                censorProfanity: settings.censorProfanity
+                censorProfanity: settings.censorProfanity,
+                vocabulary: settings.vocabulary,
+                corrections: settings.corrections
             )
 
             var transcript = try await FileTranscriber.transcribe(url: job.url, options: options) { stage in
@@ -170,7 +193,8 @@ final class JobQueue {
     }
 
     /// Never overwrites an existing file — appends " 2", " 3" the way the Finder does.
-    static func nonClobberingURL(folder: URL, base: String, ext: String) -> URL {
+    /// Nonisolated so the command line tool can use it without a main actor.
+    nonisolated static func nonClobberingURL(folder: URL, base: String, ext: String) -> URL {
         var candidate = folder.appendingPathComponent(base).appendingPathExtension(ext)
         var counter = 2
         while FileManager.default.fileExists(atPath: candidate.path) {

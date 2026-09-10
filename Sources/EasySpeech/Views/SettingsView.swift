@@ -12,15 +12,18 @@ struct SettingsView: View {
                 .tabItem { Label("Languages", systemImage: "globe") }
             TranslationSettings()
                 .tabItem { Label("Translation", systemImage: "character.bubble") }
+            CorrectionSettings()
+                .tabItem { Label("Corrections", systemImage: "character.cursor.ibeam") }
             UpdateSettings()
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
         }
-        .frame(width: 500, height: 420)
+        .frame(width: 560, height: 440)
     }
 }
 
 struct GeneralSettings: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(JobQueue.self) private var queue
     @AppStorage("showMenuBarExtra") private var showMenuBarExtra = true
 
     var body: some View {
@@ -41,6 +44,31 @@ struct GeneralSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Watched Folder") {
+                Toggle("Transcribe anything added to a folder", isOn: $settings.watchFolderEnabled)
+
+                HStack {
+                    Text(settings.watchFolderPath.isEmpty ? "No folder chosen" : settings.watchFolderPath)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                        .foregroundStyle(.secondary)
+                        .font(.callout)
+                    Spacer()
+                    Button("Choose…") { chooseWatchFolder() }
+                }
+                .disabled(!settings.watchFolderEnabled)
+
+                if let problem = queue.watchProblem {
+                    Label(problem, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else {
+                    Text("Files already in the folder are left alone — only things added from now on are transcribed, once they've finished copying.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("When a file finishes") {
                 Toggle("Reveal output in Finder", isOn: $settings.revealWhenDone)
                 Toggle("Open output file", isOn: $settings.openWhenDone)
@@ -60,6 +88,16 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func chooseWatchFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Watch"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        settings.watchFolderPath = url.path
     }
 }
 

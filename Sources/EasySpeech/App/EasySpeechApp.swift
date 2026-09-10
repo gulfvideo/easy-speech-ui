@@ -1,7 +1,20 @@
 import AppKit
 import SwiftUI
 
+/// Chooses between the app and the command line tool.
+///
+/// The same binary serves both, so a scripted run can't drift from the interactive one.
 @main
+struct EasySpeechMain {
+    static func main() {
+        let arguments = Array(CommandLine.arguments.dropFirst())
+        if CommandLineRunner.shouldHandle(arguments) {
+            CommandLineRunner.runSynchronously(arguments)
+        }
+        EasySpeechApp.main()
+    }
+}
+
 struct EasySpeechApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
@@ -42,6 +55,7 @@ struct EasySpeechApp: App {
             SettingsView()
                 .environment(settings)
                 .environment(updates)
+                .environment(queue)
         }
 
         MenuBarExtra(isInserted: $showMenuBarExtra) {

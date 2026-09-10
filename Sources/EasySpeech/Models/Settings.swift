@@ -110,6 +110,33 @@ final class AppSettings {
         defaults.bool(forKey: "showMenuBarExtra")
     }
 
+    /// "The recognizer hears X, it should say Y" rules, applied to every transcript.
+    /// The replacements are also offered to the analyzer as contextual strings.
+    var corrections: [Correction] {
+        didSet {
+            if let data = try? JSONEncoder().encode(corrections) {
+                defaults.set(data, forKey: "corrections")
+            }
+        }
+    }
+
+    /// The corrected spellings, for biasing recognition.
+    var vocabulary: [String] { corrections.map(\.replacement) }
+
+    // MARK: Watched folder
+
+    var watchFolderEnabled: Bool {
+        didSet { defaults.set(watchFolderEnabled, forKey: "watchFolderEnabled") }
+    }
+    var watchFolderPath: String {
+        didSet { defaults.set(watchFolderPath, forKey: "watchFolderPath") }
+    }
+
+    var watchFolderURL: URL? {
+        guard watchFolderEnabled, !watchFolderPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: watchFolderPath)
+    }
+
     // MARK: Updates
 
     var automaticUpdateChecks: Bool {
@@ -171,6 +198,10 @@ final class AppSettings {
         openWhenDone = defaults.bool(forKey: "openWhenDone")
         translate = defaults.bool(forKey: "translate")
         appearance = AppAppearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
+        watchFolderEnabled = defaults.bool(forKey: "watchFolderEnabled")
+        watchFolderPath = defaults.string(forKey: "watchFolderPath") ?? ""
+        corrections = (defaults.data(forKey: "corrections"))
+            .flatMap { try? JSONDecoder().decode([Correction].self, from: $0) } ?? []
         automaticUpdateChecks = defaults.bool(forKey: "automaticUpdateChecks")
         lastUpdateCheck = defaults.object(forKey: "lastUpdateCheck") as? Date
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"

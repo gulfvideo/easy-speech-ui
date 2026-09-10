@@ -16,7 +16,11 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 - **Live transcription** from the microphone, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
 - **`.txt`, `.srt` and `.vtt`** output, with real word-level timestamps so subtitle cues break at natural pauses
 - **Translation** to 20+ languages, on-device, timestamps preserved
-- **Any common format** — mp3, m4a, wav, aiff, flac, mp4, mov and more, decoded in-process with no conversion step
+- **Audio *or* video** — mp3, m4a, wav, aiff, flac and mp4, mov, m4v. Drop a recording straight in; EasySpeech reads the audio track itself, so there's no converting to MP3 first
+- **Watched folder** — point it at a folder and anything dropped there is transcribed on its own
+- **Corrections** — tell it "you hear *Ensure if I*, it's *Ensurify*" once and every transcript is fixed from then on
+- **Click any line to hear it** — jumps the original audio to that moment, for checking a name before captions ship
+- **Command line tool** for scripting and Shortcuts
 - **Automatic updates** that don't make you repeat the macOS security approval
 - Drag & drop, Finder *Open With*, full menu bar and keyboard shortcuts, light/dark/system appearance
 - Never overwrites an existing file
@@ -57,6 +61,21 @@ cd easy-speech-ui && ./build.sh && open build/EasySpeech.app
 ```
 
 A locally built copy is never quarantined, so none of the above applies.
+
+## Command line
+
+The app binary doubles as a CLI, so one build serves both:
+
+```bash
+alias easyspeech=/Applications/EasySpeech.app/Contents/MacOS/EasySpeech
+
+easyspeech interview.m4a > interview.txt
+easyspeech *.mp4 --srt --out ~/Captions
+easyspeech lecture.mov --txt --timestamps --quiet
+```
+
+Your saved corrections apply here too. `--help` lists the options. Shortcuts can call it
+through **Run Shell Script**.
 
 ## Updates
 

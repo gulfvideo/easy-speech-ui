@@ -28,6 +28,10 @@ struct FileTranscriber: Sendable {
     struct Options: Sendable {
         var locale: Locale
         var censorProfanity: Bool = false
+        /// Names and terms to bias recognition toward.
+        var vocabulary: [String] = []
+        /// Applied to recognized text before it reaches the transcript.
+        var corrections: [Correction] = []
 
         var transcriptionOptions: Set<SpeechTranscriber.TranscriptionOption> {
             censorProfanity ? [.etiquetteReplacements] : []
@@ -85,6 +89,13 @@ struct FileTranscriber: Sendable {
         let duration = try await AudioSource.duration(of: readURL)
 
         let analyzer = SpeechAnalyzer(modules: [transcriber])
+
+        // Contextual strings bias the recognizer toward names it would otherwise guess
+        // at. This is where accuracy errors concentrate, so it's the cheapest real win.
+        if let context = AnalysisContextFactory.make(from: options.vocabulary) {
+            try await analyzer.setContext(context)
+        }
+
         // Warming the model before the first buffer avoids a stall on long files.
         try await analyzer.prepareToAnalyze(in: format)
 
@@ -96,7 +107,8 @@ struct FileTranscriber: Sendable {
         // Collect results concurrently with feeding audio, or the analyzer back-pressures.
         async let collected = collectSegments(from: transcriber,
                                               totalDuration: duration,
-                                              stage: stage)
+                                              stage: stage,
+                                              corrections: options.corrections)
 
         do {
             _ = try await analyzer.analyzeSequence(stream)
@@ -118,7 +130,8 @@ struct FileTranscriber: Sendable {
     private static func collectSegments(
         from transcriber: SpeechTranscriber,
         totalDuration: TimeInterval,
-        stage: @escaping @Sendable (Stage) -> Void
+        stage: @escaping @Sendable (Stage) -> Void,
+        corrections: [Correction]
     ) async throws -> [TranscriptSegment] {
         var segments: [TranscriptSegment] = []
 
@@ -132,14 +145,15 @@ struct FileTranscriber: Sendable {
             let attributed = result.text
             let raw = String(attributed.characters).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty else { continue }
-            let text = SpokenNumbers.polish(raw)
+            let text = VocabularyCorrector.correct(SpokenNumbers.polish(raw), using: corrections)
 
             var words: [TimedWord] = []
             for run in attributed.runs {
                 guard let range = run.audioTimeRange else { continue }
                 let fragment = String(attributed[run.range].characters)
                 guard !fragment.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
-                words.append(TimedWord(text: SpokenNumbers.polish(fragment),
+                words.append(TimedWord(text: VocabularyCorrector.correct(
+                                            SpokenNumbers.polish(fragment), using: corrections),
                                        start: range.start.seconds,
                                        end: range.end.seconds))
             }
