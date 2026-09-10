@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "macOS won't open it — “Apple could not verify EasySpeech”"
+    url: https://github.com/gulfvideo/easy-speech-ui#first-launch-is-blocked-by-macos
+    about: Expected. Open System Settings › Privacy & Security and click Open Anyway. Once only.
+  - name: "It says the app requires a newer macOS"
+    url: https://github.com/gulfvideo/easy-speech-ui#requirements
+    about: EasySpeech needs macOS 26 or later on Apple Silicon. There's no build for earlier systems or Intel Macs.
+  - name: "A name is transcribed wrong every time"
+    url: https://github.com/gulfvideo/easy-speech-ui#corrections
+    about: Add it under Settings › Corrections and it's fixed in every transcript from then on.

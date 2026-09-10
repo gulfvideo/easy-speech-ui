@@ -1,0 +1,82 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The details below are the ones that usually decide
+        whether a problem can be reproduced, so please fill in what you can.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Before reporting
+      options:
+        - label: I'm on macOS 26 or later, on Apple Silicon
+          required: true
+        - label: This isn't the "Apple could not verify EasySpeech" prompt on first launch (that's expected — see the install notes)
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: EasySpeech version
+      description: Settings › Updates shows it.
+      placeholder: "1.2.2"
+    validations:
+      required: true
+
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 26.1, MacBook Pro M3"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: file-details
+    attributes:
+      label: The file involved
+      description: |
+        Format, roughly how long, and where it came from. If you can share the file — or a
+        short clip that still shows the problem — that usually settles it immediately.
+      placeholder: |
+        45-minute .mp3 exported from Logic
+        Spoken language: English (United States)
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      multiple: true
+      options:
+        - Transcribing a file
+        - Batch queue
+        - Live dictation / menu bar
+        - Watched folder
+        - Corrections
+        - Subtitles (.srt / .vtt)
+        - Translation
+        - Playback / click a line
+        - Command line tool
+        - Automatic updates
+        - Something else
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Any error text
+      description: |
+        The message EasySpeech showed, if any. For a crash, Console.app › Crash Reports has
+        the report — paste the first 30 or so lines.
+      render: text

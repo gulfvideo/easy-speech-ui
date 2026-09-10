@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest something EasySpeech should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task you're stuck on, rather than the feature you have in mind — it often points somewhere better.
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        Two things worth knowing, so you don't spend time on a request that can't happen:
+
+        - **Speaker labels** aren't possible. Apple's Speech framework exposes no
+          diarization at all, and adding a separate model would undo what makes this app small.
+        - **The language list is Apple's.** Settings › Languages shows what's available;
+          EasySpeech can't add to it.
