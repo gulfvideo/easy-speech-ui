@@ -1,0 +1,119 @@
+import Foundation
+import Observation
+
+enum OutputLocation: String, CaseIterable, Identifiable, Sendable {
+    case alongsideSource
+    case customFolder
+    case none
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .alongsideSource: "Alongside original file"
+        case .customFolder: "Choose a folder…"
+        case .none: "Don't write files"
+        }
+    }
+}
+
+/// User-facing options, persisted in UserDefaults.
+///
+/// Deliberately replaces EasyWhisperUI's `Model` dropdown and free-form `Arguments`
+/// box: Apple selects and updates the acoustic model itself, so the knobs that remain
+/// are the ones that actually change output.
+@MainActor
+@Observable
+final class AppSettings {
+    static let shared = AppSettings()
+
+    private let defaults = UserDefaults.standard
+
+    // MARK: Recognition
+
+    var localeIdentifier: String {
+        didSet { defaults.set(localeIdentifier, forKey: "localeIdentifier") }
+    }
+    /// Apple's `etiquetteReplacements` — masks profanity as e.g. "s---".
+    var censorProfanity: Bool {
+        didSet { defaults.set(censorProfanity, forKey: "censorProfanity") }
+    }
+
+    // MARK: Output
+
+    var writeText: Bool {
+        didSet { defaults.set(writeText, forKey: "writeText") }
+    }
+    var writeSRT: Bool {
+        didSet { defaults.set(writeSRT, forKey: "writeSRT") }
+    }
+    var writeVTT: Bool {
+        didSet { defaults.set(writeVTT, forKey: "writeVTT") }
+    }
+    var timestampsInText: Bool {
+        didSet { defaults.set(timestampsInText, forKey: "timestampsInText") }
+    }
+    var outputLocation: OutputLocation {
+        didSet { defaults.set(outputLocation.rawValue, forKey: "outputLocation") }
+    }
+    var customOutputPath: String {
+        didSet { defaults.set(customOutputPath, forKey: "customOutputPath") }
+    }
+    var revealWhenDone: Bool {
+        didSet { defaults.set(revealWhenDone, forKey: "revealWhenDone") }
+    }
+    var openWhenDone: Bool {
+        didSet { defaults.set(openWhenDone, forKey: "openWhenDone") }
+    }
+
+    // MARK: Translation
+
+    var translate: Bool {
+        didSet { defaults.set(translate, forKey: "translate") }
+    }
+    var translationTarget: String {
+        didSet { defaults.set(translationTarget, forKey: "translationTarget") }
+    }
+
+    var locale: Locale { Locale(identifier: localeIdentifier) }
+
+    var customOutputURL: URL? {
+        guard outputLocation == .customFolder, !customOutputPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: customOutputPath)
+    }
+
+    /// At least one format must stay on, otherwise a run produces nothing on disk.
+    var writesAnyFile: Bool {
+        outputLocation != .none && (writeText || writeSRT || writeVTT)
+    }
+
+    private init() {
+        defaults.register(defaults: [
+            "writeText": true,
+            "writeSRT": false,
+            "writeVTT": false,
+            "timestampsInText": false,
+            "revealWhenDone": false,
+            "openWhenDone": false,
+            "censorProfanity": false,
+            "translate": false,
+            "outputLocation": OutputLocation.alongsideSource.rawValue,
+            "translationTarget": "en"
+        ])
+
+        localeIdentifier = defaults.string(forKey: "localeIdentifier")
+            ?? Locale.current.identifier.replacingOccurrences(of: "_", with: "-")
+        censorProfanity = defaults.bool(forKey: "censorProfanity")
+        writeText = defaults.bool(forKey: "writeText")
+        writeSRT = defaults.bool(forKey: "writeSRT")
+        writeVTT = defaults.bool(forKey: "writeVTT")
+        timestampsInText = defaults.bool(forKey: "timestampsInText")
+        outputLocation = OutputLocation(rawValue: defaults.string(forKey: "outputLocation") ?? "")
+            ?? .alongsideSource
+        customOutputPath = defaults.string(forKey: "customOutputPath") ?? ""
+        revealWhenDone = defaults.bool(forKey: "revealWhenDone")
+        openWhenDone = defaults.bool(forKey: "openWhenDone")
+        translate = defaults.bool(forKey: "translate")
+        translationTarget = defaults.string(forKey: "translationTarget") ?? "en"
+    }
+}
