@@ -59,6 +59,7 @@ struct InspectorView: View {
             }
 
             Section("Recognition") {
+                LanguagePicker()
                 Toggle("Mask profanity", isOn: $settings.censorProfanity)
                 Text("Punctuation and capitalization are applied automatically by Apple's model.")
                     .font(.caption)
