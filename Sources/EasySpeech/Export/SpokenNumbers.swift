@@ -4,10 +4,10 @@ import Foundation
 ///
 /// `SpeechTranscriber` converts spoken quantities to digits very literally, so
 /// "millions of people" comes back as "1000000s of people", "twenty million" as
-/// "20000000", and "a thousand years old" as "a 1000 years old". The values are right
-/// but they read badly next to a Whisper transcript. These rules only touch forms that
-/// are unambiguously artifacts — years, phone numbers and ordinary counts like
-/// "100 companies" or "100% correct" are deliberately left alone.
+/// "20000000", and "a thousand years old" as "a 1000 years old". The values are correct
+/// but hard to read as prose. These rules only touch forms that are unambiguously
+/// artifacts — years, phone numbers and ordinary counts like "100 companies" or
+/// "100% correct" are deliberately left alone.
 enum SpokenNumbers {
 
     private static let scales: [(value: Int, singular: String, plural: String)] = [

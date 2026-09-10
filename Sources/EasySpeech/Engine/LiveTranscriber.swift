@@ -5,8 +5,9 @@ import Speech
 
 /// Live microphone transcription.
 ///
-/// Apple streams volatile (in-progress) results and then finalizes them, so the text
-/// settles in place instead of the redraw-the-world flicker `whisper-stream` produces.
+/// Apple streams volatile (in-progress) results and then finalizes them, so the tail of
+/// the text can be revised in place while everything before it stays put. The UI shows
+/// the volatile portion greyed so it's clear which part may still change.
 @MainActor
 @Observable
 final class LiveTranscriber {

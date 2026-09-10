@@ -43,9 +43,9 @@ enum OutputLocation: String, CaseIterable, Identifiable, Sendable {
 
 /// User-facing options, persisted in UserDefaults.
 ///
-/// Deliberately replaces EasyWhisperUI's `Model` dropdown and free-form `Arguments`
-/// box: Apple selects and updates the acoustic model itself, so the knobs that remain
-/// are the ones that actually change output.
+/// Apple selects and updates the acoustic model itself, so there is no model-size or
+/// engine-flag setting to expose. What remains are the options that actually change
+/// what lands on disk.
 @MainActor
 @Observable
 final class AppSettings {
