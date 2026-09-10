@@ -34,6 +34,7 @@ Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 
 - **Batch queue** — drop in a pile of files, processed one at a time
 - **Live transcription** from the microphone, with in-progress text shown greyed until finalized
+- **Menu bar dictation** — start from the status item, talk, stop, and the text is already on your clipboard
 - **Output formats** — `.txt`, `.srt`, `.vtt`
 - **Real word-level timestamps**, so subtitle cues are cut at natural pauses and balanced across two lines
 - **Translation** to 20+ languages, on-device, with timestamps preserved
@@ -50,6 +51,7 @@ Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 - Copy as plain text, with timestamps, or as SRT
 - Window size, sidebar width, inspector state and all options persist
 - Live transcription is a separate window, so it can sit beside a running batch
+- A status item that reports live progress ("Transcribing 31% — 1 left") and keeps the app running when every window is closed, the way a menu bar utility should. Turn it off in Settings and the app quits with its last window instead.
 - Full-text search inside a transcript
 - **Never overwrites** an existing file — appends " 2" the way the Finder does
 
@@ -118,7 +120,7 @@ Sources/EasySpeech/
 ├── Export/       SRT / VTT / text writers
 └── Views/        SwiftUI interface
 
-EasySpeechArt/     Icon set — .icns, .iconset, asset catalog, SVG masters
+EasySpeechArt/     Icon set — .icns, .iconset, menu bar template, SVG masters
 ```
 
 ### Two things worth knowing if you hack on this

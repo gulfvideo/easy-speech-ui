@@ -66,6 +66,11 @@ final class AppSettings {
         didSet { defaults.set(openWhenDone, forKey: "openWhenDone") }
     }
 
+    /// Keeps the status item in the menu bar, and keeps the app alive without windows.
+    var showMenuBarExtra: Bool {
+        didSet { defaults.set(showMenuBarExtra, forKey: "showMenuBarExtra") }
+    }
+
     // MARK: Translation
 
     var translate: Bool {
@@ -94,6 +99,7 @@ final class AppSettings {
             "writeVTT": false,
             "timestampsInText": false,
             "revealWhenDone": false,
+            "showMenuBarExtra": true,
             "openWhenDone": false,
             "censorProfanity": false,
             "translate": false,
@@ -112,6 +118,7 @@ final class AppSettings {
             ?? .alongsideSource
         customOutputPath = defaults.string(forKey: "customOutputPath") ?? ""
         revealWhenDone = defaults.bool(forKey: "revealWhenDone")
+        showMenuBarExtra = defaults.bool(forKey: "showMenuBarExtra")
         openWhenDone = defaults.bool(forKey: "openWhenDone")
         translate = defaults.bool(forKey: "translate")
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"

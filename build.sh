@@ -21,6 +21,13 @@ printf 'APPL????' > "$CONTENTS/PkgInfo"
 echo "==> Installing icon"
 cp "$ROOT/EasySpeechArt/EasySpeech.icns" "$CONTENTS/Resources/AppIcon.icns"
 
+# Status-item template images. Named so NSImage(named: "MenuBarIcon") picks the
+# right scale for the display — there is no asset catalog in an SPM build.
+MB="$ROOT/EasySpeechArt/Assets.xcassets/MenuBarIcon.imageset"
+cp "$MB/MenuBarIcon@1x.png" "$CONTENTS/Resources/MenuBarIcon.png"
+cp "$MB/MenuBarIcon@2x.png" "$CONTENTS/Resources/MenuBarIcon@2x.png"
+cp "$MB/MenuBarIcon@3x.png" "$CONTENTS/Resources/MenuBarIcon@3x.png"
+
 echo "==> Signing"
 # Ad-hoc signature. Enough for the microphone and speech permission prompts to work
 # locally; replace "-" with your Developer ID to distribute.
