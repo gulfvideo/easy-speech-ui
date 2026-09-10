@@ -21,8 +21,33 @@ enum SpokenNumbers {
         result = replacePluralizedScales(in: result)
         result = replaceLargeRoundNumbers(in: result)
         result = replaceArticleQuantities(in: result)
+        result = replaceSmallOrdinals(in: result)
         result = groupCurrencyDigits(in: result)
         return result
+    }
+
+    private static let smallOrdinals: [String: String] = [
+        "1st": "first", "2nd": "second", "3rd": "third", "4th": "fourth", "5th": "fifth",
+        "6th": "sixth", "7th": "seventh", "8th": "eighth", "9th": "ninth"
+    ]
+
+    /// "the 1st version" → "the first version".
+    ///
+    /// Only single-digit ordinals, following the usual convention that ordinals below ten
+    /// are spelled out in prose and larger ones aren't. A date keeps its digits: "May 1st"
+    /// is left alone, because "May first" reads like a mistake.
+    ///
+    /// `\b([1-9])` can't match inside a longer number, so 11th, 21st and 103rd are all
+    /// untouched without needing a rule of their own.
+    private static func replaceSmallOrdinals(in text: String) -> String {
+        let months = "Jan|January|Feb|February|Mar|March|Apr|April|May|Jun|June|Jul|July|Aug|August|Sep|Sept|September|Oct|October|Nov|November|Dec|December"
+        let pattern = "(\\b(?:\(months))\\.?\\s+)?\\b([1-9](?:st|nd|rd|th))\\b"
+
+        return replaceMatches(of: pattern, in: text) { groups in
+            // Group 1 present means a month preceded it — that's a date, leave it.
+            guard groups[1].isEmpty else { return nil }
+            return smallOrdinals[groups[2].lowercased()]
+        }
     }
 
     /// "1000000s" → "millions". Nobody writes a plural on a digit string, so any match
