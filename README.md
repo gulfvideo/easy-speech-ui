@@ -6,6 +6,8 @@ A fast, native macOS transcription app built entirely on **Apple's on-device Spe
 
 No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac.
 
+![EasySpeech](docs/screenshot.png)
+
 ---
 
 ## Why
