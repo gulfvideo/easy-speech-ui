@@ -63,10 +63,10 @@ struct TranscriptView: View {
                     ForEach(filteredSegments(job)) { segment in
                         SegmentRow(segment: segment,
                                    showTimestamp: showTimestamps,
-                                   isActive: activeSegment == segment.id)
-                            .contentShape(.rect)
-                            .onTapGesture { player.play(job.url, at: segment.start) }
-                            .help("Play from \(SubtitleWriter.shortTimecode(segment.start))")
+                                   isActive: activeSegment == segment.id,
+                                   canPlay: mediaExists(job)) {
+                            player.play(job.url, at: segment.start)
+                        }
                     }
                 }
                 .padding(20)
@@ -101,6 +101,10 @@ struct TranscriptView: View {
                 .help("Copy or export this transcript")
             }
         }
+    }
+
+    private func mediaExists(_ job: Job) -> Bool {
+        FileManager.default.fileExists(atPath: job.url.path)
     }
 
     private var activeSegment: TranscriptSegment.ID? {
@@ -190,15 +194,36 @@ struct SegmentRow: View {
     let segment: TranscriptSegment
     let showTimestamp: Bool
     var isActive = false
+    var canPlay = false
+    var play: () -> Void = {}
+
+    @State private var isHovering = false
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            // A real button in its own gutter, rather than a tap on the text: selectable
+            // text swallows tap gestures, and losing selection to gain seeking would be a
+            // bad trade. The gutter keeps its width so lines don't shift on hover.
+            Button(action: play) {
+                Image(systemName: isActive ? "speaker.wave.2.fill" : "play.fill")
+                    .font(.caption)
+                    .foregroundStyle(isActive ? AnyShapeStyle(Color.accentColor)
+                                              : AnyShapeStyle(Color.secondary))
+                    .opacity(isActive || isHovering ? 1 : 0)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canPlay)
+            .frame(width: 14)
+            .help("Play from \(SubtitleWriter.shortTimecode(segment.start))")
+            .accessibilityLabel("Play from \(SubtitleWriter.shortTimecode(segment.start))")
+
             if showTimestamp {
                 Text(SubtitleWriter.shortTimecode(segment.start))
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(isActive ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
-                    .frame(width: 54, alignment: .trailing)
+                    .frame(width: 50, alignment: .trailing)
             }
+
             Text(segment.text)
                 .font(.system(size: 14))
                 .lineSpacing(3)
@@ -210,6 +235,7 @@ struct SegmentRow: View {
             RoundedRectangle(cornerRadius: 6)
                 .fill(isActive ? Color.accentColor.opacity(0.12) : .clear)
         }
+        .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.15), value: isActive)
     }
 }

@@ -19,7 +19,7 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 - **Audio *or* video** — mp3, m4a, wav, aiff, flac and mp4, mov, m4v. Drop a recording straight in; EasySpeech reads the audio track itself, so there's no converting to MP3 first
 - **Watched folder** — point it at a folder and anything dropped there is transcribed on its own
 - **Corrections** — tell it "you hear *Ensure if I*, it's *Ensurify*" once and every transcript is fixed from then on
-- **Click any line to hear it** — jumps the original audio to that moment, for checking a name before captions ship
+- **Click any line to hear it** — a play control on each line cues the original audio to that moment, for checking a name before captions ship
 - **Command line tool** for scripting and Shortcuts
 - **Automatic updates** that don't make you repeat the macOS security approval
 - Drag & drop, Finder *Open With*, full menu bar and keyboard shortcuts, light/dark/system appearance
@@ -61,6 +61,13 @@ cd easy-speech-ui && ./build.sh && open build/EasySpeech.app
 ```
 
 A locally built copy is never quarantined, so none of the above applies.
+
+### Corrections
+
+Recognition errors cluster on names the model has no reason to expect. Add the ones you
+hit and they're fixed in every transcript from then on.
+
+![Correction rules](docs/corrections.png)
 
 ## Command line
 
