@@ -2,48 +2,39 @@
 
 <img src="EasySpeechArt/EasySpeech-1024.png" alt="EasySpeech" width="120" />
 
-A fast, native macOS transcription app built entirely on **Apple's on-device Speech framework**. No Whisper, no models to download and manage, no FFmpeg, no Electron.
+A fast, native macOS transcription app built entirely on **Apple's on-device Speech framework**.
 
-It's a rebuild of [EasyWhisperUI](https://github.com/mehtabmahir/easy-whisper-ui) — same job, same workflow, different engine.
+No cloud, no API keys, no models to download and manage, no Python, no Electron, no FFmpeg. Audio never leaves your Mac.
 
 ---
 
 ## Why
 
-EasyWhisperUI is a great app, but its architecture carries weight: an Electron runtime, a compiled `whisper.cpp` binary, a bundled FFmpeg, and multi-gigabyte GGML models you download and pick between. On macOS 26, Apple ships `SpeechAnalyzer` / `SpeechTranscriber` — an on-device recognizer with no length limit, real word-level timestamps, and models the OS manages and shares with Dictation.
+macOS 26 ships `SpeechAnalyzer` / `SpeechTranscriber`: an on-device recognizer with no
+length limit, real word-level timestamps, and acoustic models the OS manages and shares
+with Dictation. That makes a transcription app that is small, fast, and genuinely native
+possible without bundling an inference engine.
 
-That removes most of the moving parts:
-
-| | EasyWhisperUI | EasySpeech |
-|---|---|---|
-| Runtime | Electron (~200 MB) | Native Swift (~1 MB) |
-| Engine | whisper.cpp + Metal | Apple SpeechAnalyzer (Neural Engine) |
-| Models | You download & choose (75 MB – 3 GB) | OS-managed, shared with Dictation |
-| Audio conversion | FFmpeg → temp WAV on disk | AVFoundation, in-process, no temp file |
-| Startup | Electron boot | Instant |
-| Languages | ~100 | 45 |
-| Translation | Built into the model | Apple Translation framework |
-
-The honest trade-off is at the bottom of that table: **fewer languages**, and translation is a separate step. If you transcribe Icelandic, stay on Whisper. If you work in the 45 supported languages, this is faster, lighter, and better integrated.
+EasySpeech is about 2,900 lines of Swift with **zero dependencies**. The whole app is a
+1.2 MB download and starts instantly. A three-and-a-half hour podcast transcribes in
+under three minutes using about 20 MB of memory.
 
 ---
 
 ## Features
-
-Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 
 - **Batch queue** — drop in a pile of files, processed one at a time
 - **Live transcription** from the microphone, with in-progress text shown greyed until finalized
 - **Menu bar dictation** — start from the status item, talk, stop, and the text is already on your clipboard
 - **Output formats** — `.txt`, `.srt`, `.vtt`
 - **Real word-level timestamps**, so subtitle cues are cut at natural pauses and balanced across two lines
-- **Readable numbers** — Apple's recognizer emits "1000000s of people" and "a 1000 years old"; EasySpeech repairs those to "millions of people" and "a thousand years old" without touching years, phone numbers or ordinary counts
-- **Light, dark, or system appearance**
 - **Translation** to 20+ languages, on-device, with timestamps preserved
+- **Readable numbers** — Apple's recognizer emits "1000000s of people" and "a 1000 years old"; EasySpeech repairs those to "millions of people" and "a thousand years old" without touching years, phone numbers or ordinary counts
 - **Drag & drop** anywhere in the window, onto the Dock icon, or via Finder's *Open With*
-- **Automatic format handling** — mp3, m4a, wav, aiff, flac, mp4, mov and more, no conversion step
+- **Automatic format handling** — mp3, m4a, wav, aiff, flac, mp4, mov and more, decoded in-process with no conversion step
 - **Optional FFmpeg fallback** for `.ogg`, `.opus`, `.mkv`, `.wma`
 - **Language models download on demand**, or pre-download them in Settings
+- **Light, dark, or system appearance**
 
 ### Mac things it does properly
 
@@ -62,7 +53,8 @@ Everything EasyWhisperUI does, minus the parts Apple makes unnecessary:
 
 ## Performance
 
-Measured on this machine (Apple Silicon, macOS 26) against a **3 hour 38 minute** podcast MP3 — 13,114 seconds of two-host conversational speech:
+Measured on Apple Silicon against a **3 hour 38 minute** podcast MP3 — 13,114 seconds of
+two-host conversational speech:
 
 | | Result |
 |---|---|
@@ -72,17 +64,19 @@ Measured on this machine (Apple Silicon, macOS 26) against a **3 hour 38 minute*
 | Peak memory | **20.5 MB** |
 | Output | 4,590 segments · 39,665 words · 210 KB text |
 
-The gap between 167 seconds of wall clock and 20 seconds of CPU is the point: the Neural Engine does the recognition, so the machine stays responsive and cool while a batch runs.
+The gap between 167 seconds of wall clock and 20 seconds of CPU is the point: the Neural
+Engine does the recognition, so the machine stays responsive and cool while a batch runs.
 
-Memory is flat regardless of length — a 3.6-hour file and a 30-second file both sit around 20 MB, because audio is pulled on demand rather than decoded up front.
+Memory is flat regardless of length — a 3.6-hour file and a 30-second file both sit around
+20 MB, because audio is pulled on demand rather than decoded up front.
 
 ---
 
 ## Requirements
 
-- **macOS 26 or later** (this is where `SpeechAnalyzer` was introduced)
-- Apple Silicon recommended
-- Xcode 26+ command line tools to build
+- **macOS 26 or later** — this is where `SpeechAnalyzer` was introduced
+- Apple Silicon
+- Xcode 26+ command line tools to build from source
 
 ---
 
@@ -151,7 +145,8 @@ To build the distributable disk image:
 ./package.sh
 ```
 
-The build script ad-hoc signs the app so the microphone permission prompt works. To distribute it, set your signing identity:
+The build script ad-hoc signs the app so the microphone permission prompt works. To
+distribute it signed, set your identity:
 
 ```bash
 CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./build.sh
@@ -172,7 +167,7 @@ Sources/EasySpeech/
 │   ├── LocaleCatalog.swift      Language model install/reserve
 │   ├── TranslationService.swift Apple Translation framework
 │   └── JobQueue.swift           Sequential batch processing
-├── Export/       SRT / VTT / text writers
+├── Export/       SRT / VTT / text writers, number repair
 └── Views/        SwiftUI interface
 
 EasySpeechArt/     Icon set — .icns, .iconset, menu bar template, SVG masters
@@ -180,8 +175,8 @@ EasySpeechArt/     Icon set — .icns, .iconset, menu bar template, SVG masters
 
 ### Accuracy
 
-Checked against EasyWhisperUI (whisper.cpp, `medium.en`) on the same 3 hour 38 minute
-podcast — two completely independent engines on hard, fast, overlapping radio talk:
+Validated against an independent `whisper.cpp` (`medium.en`) transcript of the same
+3 hour 38 minute recording — hard, fast, overlapping radio talk:
 
 | | Result |
 |---|---|
@@ -190,32 +185,39 @@ podcast — two completely independent engines on hard, fast, overlapping radio 
 | Longest verbatim agreement | 116 consecutive identical words |
 | Timeline coverage | first cue 0.0s, last ends 13,113.1s of 13,114s |
 | Gaps over 20s | **0** |
-| Hallucination loops | none in either (Apple had slightly fewer) |
+| Hallucination loops | none in either |
 
-Where they disagree it's mostly proper nouns and genuinely unclear audio, and the two
-trade wins about evenly. One consistent stylistic difference: Apple normalizes to formal
-English ("going to"), Whisper stays verbatim ("gonna").
+Two independent engines landing within half a percent, with runs of a hundred-plus
+identical words, is good evidence neither is drifting. Where they differ it's mostly
+proper nouns and genuinely unclear audio.
 
 ### Three things worth knowing if you hack on this
 
-**The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat` returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you `nil` and a silently empty transcript. `AudioSource` reads the format's `streamDescription` and copies raw bytes, so it keeps working if Apple changes it.
+**The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat`
+returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you
+`nil` and a silently empty transcript. `AudioSource` reads the format's `streamDescription`
+and copies raw bytes, so it keeps working if Apple changes it.
 
 **Apple's inverse text normalization is very literal.** Spoken "millions" comes back as
 the digit string `1000000s`, "twenty million" as `20000000`, "a thousand years old" as
 `a 1000 years old`. `SpokenNumbers` repairs the unambiguous cases; see its rules before
 adding more, because years, phone numbers, prices and percentages must stay untouched.
 
-**Audio is pulled, not pushed.** An `AsyncStream` buffers without bound, and decoding runs far ahead of recognition — a 3.6-hour podcast decodes in about 12 seconds and parks ~405 MB of PCM in memory. `AudioSource.InputSequence` is a pull-based `AsyncSequence` that decodes inside `next()`, so the analyzer draws one buffer at a time and memory stays flat no matter how long the file is.
+**Audio is pulled, not pushed.** An `AsyncStream` buffers without bound, and decoding runs
+far ahead of recognition — a 3.6-hour podcast decodes in about 12 seconds and parks
+~405 MB of PCM in memory. `AudioSource.InputSequence` is a pull-based `AsyncSequence` that
+decodes inside `next()`, so the analyzer draws one buffer at a time and memory stays flat
+no matter how long the file is.
 
 ---
 
 ## Known limits
 
-- **45 languages**, not Whisper's ~100. Settings › Languages lists them.
-- **No custom models.** Apple manages the acoustic model; there is no `tiny`/`large-v3` choice and no way to load your own. If you need a specific Whisper model, use EasyWhisperUI.
-- **No `--arguments` box.** Nothing to pass them to.
+- **45 languages.** Settings › Languages lists them. Apple supports fewer languages than some Whisper models do.
+- **No custom models.** Apple manages the acoustic model, so there is no size/quality picker and no way to load your own.
 - **Punctuation is always on.** Apple gives no toggle, so the app doesn't pretend to offer one.
-- **Translation quality** is Apple's, not Whisper's — generally good for major languages, weaker for rare pairs.
+- **Apple Silicon, macOS 26+.** No fallback for older systems.
+- **Translation quality** is Apple's — generally good for major languages, weaker for rare pairs.
 
 ---
 
@@ -223,4 +225,9 @@ adding more, because years, phone numbers, prices and percentages must stay unto
 
 MIT — see [LICENSE](LICENSE).
 
-Credit to [mehtabmahir/easy-whisper-ui](https://github.com/mehtabmahir/easy-whisper-ui) for the original app and its interaction design.
+## Credits
+
+Inspired by [EasyWhisperUI](https://github.com/mehtabmahir/easy-whisper-ui) by
+[mehtabmahir](https://github.com/mehtabmahir) — a great, genuinely useful app, and the
+reason this one exists. If you need broader language coverage or specific Whisper models,
+go use it.

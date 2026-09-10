@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The options panel that replaces EasyWhisperUI's Model dropdown and Arguments box.
-/// Every control here changes real output — Apple manages model choice itself.
+/// The options panel. Every control here changes real output — there are no
+/// engine-tuning knobs, because Apple manages model selection itself.
 struct InspectorView: View {
     @Environment(AppSettings.self) private var settings
 

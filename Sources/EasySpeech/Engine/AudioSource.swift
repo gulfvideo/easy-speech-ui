@@ -21,10 +21,10 @@ enum AudioSourceError: LocalizedError {
 
 /// Decodes any AVFoundation-readable media into the PCM format SpeechAnalyzer wants.
 ///
-/// EasyWhisperUI shells out to FFmpeg and writes a temporary 44.1 kHz WAV next to the
-/// source before every run. AVFoundation decodes and resamples in one pass, in-process,
-/// so there is no temp file, no conversion wait, and no bundled binary. FFmpeg is used
-/// only as a fallback for containers AVFoundation refuses (ogg, opus, mkv, wma).
+/// AVFoundation decodes and resamples in one pass, in-process, so there is no temporary
+/// WAV written beside the source, no conversion wait before recognition starts, and no
+/// transcoder binary to bundle. FFmpeg is used only as a fallback for the containers
+/// AVFoundation refuses (ogg, opus, mkv, wma), and only if the user happens to have it.
 enum AudioSource {
 
     private static let log = Logger(subsystem: "com.easyspeech.ui", category: "audio")

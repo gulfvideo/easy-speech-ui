@@ -1,9 +1,9 @@
 import Foundation
 import Speech
 
-/// Wraps `AssetInventory`, which is Apple's equivalent of EasyWhisperUI's
-/// "download the model if missing" step — except the assets are system-managed,
-/// shared with Dictation, and never appear in the app's own storage.
+/// Wraps `AssetInventory`, which downloads a language's acoustic model if it isn't
+/// already present. The assets are system-managed and shared with Dictation, so they
+/// never appear in the app's own storage and don't need version tracking here.
 enum LocaleCatalog {
 
     struct Entry: Identifiable, Hashable, Sendable {

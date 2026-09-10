@@ -2,10 +2,11 @@ import AppKit
 import Foundation
 import Observation
 
-/// Sequential batch queue, mirroring EasyWhisperUI's one-at-a-time behaviour.
+/// Sequential batch queue.
 ///
-/// Files are processed in order because the Neural Engine is the bottleneck — running
-/// several at once makes every file slower rather than the batch faster.
+/// Files are processed one at a time, in order, because the Neural Engine is the
+/// bottleneck — running several at once makes every file slower rather than the batch
+/// faster.
 @MainActor
 @Observable
 final class JobQueue {

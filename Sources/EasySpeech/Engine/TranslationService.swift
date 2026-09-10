@@ -17,8 +17,8 @@ enum TranslationServiceError: LocalizedError {
 
 /// On-device translation via Apple's Translation framework.
 ///
-/// Whisper's `--translate` is a property of the acoustic model; Apple separates the two,
-/// so we transcribe first and translate the text after. Translating **segment by segment**
+/// Apple keeps recognition and translation separate, so we transcribe in the spoken
+/// language first and translate the text afterwards. Translating **segment by segment**
 /// keeps every timestamp intact, which means translated subtitles still line up.
 enum TranslationService {
 
