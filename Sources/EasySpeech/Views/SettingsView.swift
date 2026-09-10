@@ -96,8 +96,10 @@ struct GeneralSettings: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.prompt = "Watch"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        settings.watchFolderPath = url.path
+        PanelPresentation.present(panel) { accepted in
+            guard accepted, let url = panel.url else { return }
+            settings.watchFolderPath = url.path
+        }
     }
 }
 

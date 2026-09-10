@@ -112,7 +112,9 @@ struct LiveView: View {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.plainText]
         panel.nameFieldStringValue = "Live Transcript"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? live.finalizedText.write(to: url, atomically: true, encoding: .utf8)
+        PanelPresentation.present(panel) { accepted in
+            guard accepted, let url = panel.url else { return }
+            try? live.finalizedText.write(to: url, atomically: true, encoding: .utf8)
+        }
     }
 }

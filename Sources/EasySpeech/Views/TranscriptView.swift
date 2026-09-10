@@ -179,14 +179,15 @@ struct TranscriptView: View {
                                      UTType(filenameExtension: "vtt") ?? .plainText]
         panel.message = "Choose a format by extension: .txt, .srt or .vtt"
 
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        let contents: String = switch url.pathExtension.lowercased() {
-        case "srt": SubtitleWriter.srt(for: job.transcript)
-        case "vtt": SubtitleWriter.vtt(for: job.transcript)
-        default: SubtitleWriter.text(for: job.transcript, timestamps: showTimestamps)
+        PanelPresentation.present(panel) { accepted in
+            guard accepted, let url = panel.url else { return }
+            let contents: String = switch url.pathExtension.lowercased() {
+            case "srt": SubtitleWriter.srt(for: job.transcript)
+            case "vtt": SubtitleWriter.vtt(for: job.transcript)
+            default: SubtitleWriter.text(for: job.transcript, timestamps: showTimestamps)
+            }
+            try? contents.write(to: url, atomically: true, encoding: .utf8)
         }
-        try? contents.write(to: url, atomically: true, encoding: .utf8)
     }
 }
 
@@ -209,7 +210,9 @@ struct SegmentRow: View {
                     .font(.caption)
                     .foregroundStyle(isActive ? AnyShapeStyle(Color.accentColor)
                                               : AnyShapeStyle(Color.secondary))
-                    .opacity(isActive || isHovering ? 1 : 0)
+                    // Dimmed rather than hidden: a control that pops in and out as the
+                    // pointer crosses lines reads as flicker.
+                    .opacity(isActive ? 1 : (isHovering ? 0.9 : 0.22))
             }
             .buttonStyle(.plain)
             .disabled(!canPlay)
@@ -237,5 +240,6 @@ struct SegmentRow: View {
         }
         .onHover { isHovering = $0 }
         .animation(.easeOut(duration: 0.15), value: isActive)
+        .animation(.easeOut(duration: 0.12), value: isHovering)
     }
 }

@@ -76,6 +76,11 @@ extension Notification.Name {
 
 enum FilePicker {
     /// Standard open panel, restricted to media the app can actually decode.
+    ///
+    /// Presented as a sheet when there's a window to attach it to, and otherwise as an
+    /// ordinary panel — never with `runModal()`. Running a modal loop from the menu bar
+    /// left the panel floating free, where it sank behind whatever app was in front while
+    /// the status menu carried on opening over the top of it.
     @MainActor
     static func presentAndAdd(to queue: JobQueue) {
         let panel = NSOpenPanel()
@@ -86,7 +91,21 @@ enum FilePicker {
         panel.prompt = "Transcribe"
         panel.allowedContentTypes = [.audio, .movie, .mpeg4Movie, .mp3, .wav, .aiff, .quickTimeMovie]
 
-        guard panel.runModal() == .OK else { return }
-        queue.add(panel.urls)
+        NSApp.activate(ignoringOtherApps: true)
+
+        // A sheet belongs to a window; only fall back to a free panel without one.
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: \.isVisible) {
+            panel.beginSheetModal(for: window) { response in
+                guard response == .OK else { return }
+                queue.add(panel.urls)
+            }
+        } else {
+            panel.begin { response in
+                guard response == .OK else { return }
+                MainActor.assumeIsolated {
+                    _ = queue.add(panel.urls)
+                }
+            }
+        }
     }
 }

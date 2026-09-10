@@ -81,8 +81,10 @@ struct InspectorView: View {
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
         panel.prompt = "Choose"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        settings.customOutputPath = url.path
+        PanelPresentation.present(panel) { accepted in
+            guard accepted, let url = panel.url else { return }
+            settings.customOutputPath = url.path
+        }
     }
 }
 

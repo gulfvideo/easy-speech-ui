@@ -56,19 +56,17 @@ struct MenuBarView: View {
             .keyboardShortcut("q")
     }
 
+    /// Deliberately coarse. An open NSMenu rebuilds when the state it observes changes,
+    /// so a live percentage — which updates on every recognized phrase — made the items
+    /// flicker and shift under the pointer. This only changes when a file starts or
+    /// finishes, which is rare enough to be stable while the menu is open.
     private var statusLine: String {
         if live.isRunning { return "Listening…" }
-        if let progress = queue.modelDownload {
-            return "Downloading model — \(Int(progress.fractionCompleted * 100))%"
-        }
-        if queue.isProcessing {
-            let job = queue.activeJob
-            if case .transcribing(let fraction) = job?.state {
-                return "Transcribing \(Int(fraction * 100))% — \(queue.pendingCount) left"
-            }
-            return "Working — \(queue.pendingCount) left"
-        }
-        return "EasySpeech — Idle"
+        if queue.modelDownload != nil { return "Downloading language model…" }
+        guard queue.isProcessing else { return "EasySpeech — Idle" }
+
+        let remaining = queue.pendingCount
+        return remaining == 1 ? "Transcribing 1 file" : "Transcribing \(remaining) files"
     }
 
     private func toggleDictation() {
