@@ -48,6 +48,7 @@ struct ContentView: View {
         .sheet(item: Bindable(updates).pendingPrompt) { update in
             UpdateSheet(update: update)
                 .environment(updates)
+                .environment(queue)
         }
     }
 

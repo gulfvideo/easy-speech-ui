@@ -66,6 +66,8 @@ final class UpdateController {
         }
     }
 
+    /// Refuses while a transcription is running: the installer may have to force-quit
+    /// the app, which would throw away work in progress.
     func install(_ update: AvailableUpdate) {
         guard !isBusy else { return }
         state = .installing(.downloading)
@@ -75,6 +77,8 @@ final class UpdateController {
             do {
                 try await Updater.install(update) { stage in
                     self.state = .installing(stage)
+                    // A presented sheet blocks termination, so get out of the way.
+                    if stage == .relaunching { self.pendingPrompt = nil }
                 }
                 // On success the app is terminating; nothing more to do.
             } catch {

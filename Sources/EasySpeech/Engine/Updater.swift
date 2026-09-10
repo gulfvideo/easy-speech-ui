@@ -67,17 +67,29 @@ enum Updater {
         await stage(.downloading)
         let downloaded = try await download(update.downloadURL)
         let workspace = downloaded.deletingLastPathComponent()
-        defer { try? FileManager.default.removeItem(at: workspace) }
 
-        await stage(.verifying)
-        try verifyChecksum(of: downloaded, expected: update.sha256)
-        let staged = try unpackAndValidate(downloaded, into: workspace)
+        do {
+            await stage(.verifying)
+            try verifyChecksum(of: downloaded, expected: update.sha256)
+            let staged = try unpackAndValidate(downloaded, into: workspace)
 
-        await stage(.installing)
-        // Hand the swap to a detached shell: this process is about to be replaced.
-        try scheduleSwapAndRelaunch(staged: staged, destination: destination)
+            await stage(.installing)
+            // The detached script outlives this process and owns the workspace from here,
+            // including deleting it. Cleaning up locally would race the script and win,
+            // leaving it nothing to copy.
+            try scheduleSwapAndRelaunch(staged: staged,
+                                        destination: destination,
+                                        workspace: workspace)
+        } catch {
+            try? FileManager.default.removeItem(at: workspace)
+            throw error
+        }
 
         await stage(.relaunching)
+        // The controller drops the sheet on this stage; AppKit vetoes `terminate` while
+        // one is up, so let the dismissal land before asking. The script force-quits if
+        // this still doesn't take.
+        try? await Task.sleep(for: .milliseconds(400))
         await MainActor.run { NSApp.terminate(nil) }
     }
 
@@ -161,26 +173,39 @@ enum Updater {
     /// Waits for this process to exit, swaps the bundle, and reopens the app.
     /// Kept inline rather than written to a script file so there's no window in which
     /// something else could rewrite it before it runs.
-    private static func scheduleSwapAndRelaunch(staged: URL, destination: URL) throws {
+    private static func scheduleSwapAndRelaunch(staged: URL,
+                                               destination: URL,
+                                               workspace: URL) throws {
         let pid = ProcessInfo.processInfo.processIdentifier
         let new = destination.path + ".new"
         let old = destination.path + ".old"
 
+        // Ask nicely, then insist. A presented sheet makes AppKit veto `terminate`, so
+        // waiting politely forever would strand the update half-done.
         let script = """
-        for _ in $(seq 1 150); do
+        for _ in $(seq 1 50); do
           /bin/kill -0 \(pid) 2>/dev/null || break
           /bin/sleep 0.2
         done
+        if /bin/kill -0 \(pid) 2>/dev/null; then /bin/kill \(pid) 2>/dev/null; fi
+        for _ in $(seq 1 25); do
+          /bin/kill -0 \(pid) 2>/dev/null || break
+          /bin/sleep 0.2
+        done
+        if /bin/kill -0 \(pid) 2>/dev/null; then /bin/kill -9 \(pid) 2>/dev/null; fi
+        /bin/sleep 0.5
         /bin/rm -rf \(quote(new)) \(quote(old)) || exit 1
         /usr/bin/ditto \(quote(staged.path)) \(quote(new)) || exit 1
         /bin/mv \(quote(destination.path)) \(quote(old)) || exit 1
         if ! /bin/mv \(quote(new)) \(quote(destination.path)); then
           /bin/mv \(quote(old)) \(quote(destination.path))
+          /bin/rm -rf \(quote(workspace.path))
           exit 1
         fi
         /bin/rm -rf \(quote(old))
         /usr/bin/xattr -dr com.apple.quarantine \(quote(destination.path)) 2>/dev/null
         /usr/bin/open -n \(quote(destination.path))
+        /bin/rm -rf \(quote(workspace.path))
         """
 
         let process = Process()
