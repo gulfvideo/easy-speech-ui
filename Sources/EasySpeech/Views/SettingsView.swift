@@ -23,6 +23,12 @@ struct GeneralSettings: View {
     var body: some View {
         @Bindable var settings = settings
         Form {
+            Section("Menu Bar") {
+                Toggle("Show EasySpeech in the menu bar", isOn: $settings.showMenuBarExtra)
+                Text("Gives you dictation from anywhere. While it's showing, closing every window leaves EasySpeech running in the background.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("When a file finishes") {
                 Toggle("Reveal output in Finder", isOn: $settings.revealWhenDone)
                 Toggle("Open output file", isOn: $settings.openWhenDone)

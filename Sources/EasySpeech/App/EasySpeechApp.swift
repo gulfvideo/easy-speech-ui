@@ -33,6 +33,15 @@ struct EasySpeechApp: App {
             SettingsView()
                 .environment(settings)
         }
+
+        MenuBarExtra(isInserted: Bindable(settings).showMenuBarExtra) {
+            MenuBarView()
+                .environment(queue)
+                .environment(live)
+                .environment(settings)
+        } label: {
+            Image(nsImage: .menuBarIcon)
+        }
     }
 }
 
@@ -42,7 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Files that arrive before the window exists are held until it does.
     @MainActor private var pending: [URL] = []
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    /// With the status item showing, closing every window leaves the app running the way
+    /// a menu bar utility should. Without it, the app has no UI left, so it quits.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        MainActor.assumeIsolated { !AppSettings.shared.showMenuBarExtra }
+    }
 
     func application(_ application: NSApplication, open urls: [URL]) {
         MainActor.assumeIsolated {
