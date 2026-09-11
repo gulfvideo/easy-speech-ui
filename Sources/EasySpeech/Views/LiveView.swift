@@ -8,6 +8,7 @@ struct LiveView: View {
     @Environment(AppSettings.self) private var settings
 
     @State private var autoScroll = true
+    @State private var inputs: [AudioInputDevice] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,8 +42,14 @@ struct LiveView: View {
             Divider()
             controls
         }
-        .frame(minWidth: 460, minHeight: 320)
+        .frame(minWidth: 560, minHeight: 320)
         .navigationTitle("Live Transcription")
+        .task { inputs = AudioInputCatalog.devices() }
+        // Devices come and go; refresh whenever the window is focused again.
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
+            inputs = AudioInputCatalog.devices()
+        }
     }
 
     /// Volatile text is dimmed so it's clear the engine may still revise it.
@@ -88,6 +95,11 @@ struct LiveView: View {
                 .transition(.opacity)
             }
 
+            InputDevicePicker(devices: inputs)
+                // Changing device mid-recording would invalidate the running tap.
+                .disabled(live.isRunning)
+                .help(live.isRunning ? "Stop recording to change microphone" : "Microphone to record from")
+
             Spacer()
 
             Toggle("Auto-scroll", isOn: $autoScroll)
@@ -116,5 +128,39 @@ struct LiveView: View {
             guard accepted, let url = panel.url else { return }
             try? live.finalizedText.write(to: url, atomically: true, encoding: .utf8)
         }
+    }
+}
+
+/// Chooses which microphone live dictation records from.
+struct InputDevicePicker: View {
+    @Environment(AppSettings.self) private var settings
+    let devices: [AudioInputDevice]
+
+    var body: some View {
+        @Bindable var settings = settings
+
+        Picker(selection: $settings.inputDeviceUID) {
+            Text(defaultLabel).tag("")
+            if !devices.isEmpty { Divider() }
+            ForEach(devices) { device in
+                Text(device.name).tag(device.uid)
+            }
+            // A device that's been unplugged still has a saved UID; keep it listed so
+            // the picker doesn't silently fall back and look like it forgot the choice.
+            if !settings.inputDeviceUID.isEmpty,
+               !devices.contains(where: { $0.uid == settings.inputDeviceUID }) {
+                Divider()
+                Text("Unavailable device").tag(settings.inputDeviceUID)
+            }
+        } label: {
+            Image(systemName: "mic")
+        }
+        .pickerStyle(.menu)
+        .frame(maxWidth: 190)
+    }
+
+    private var defaultLabel: String {
+        guard let name = AudioInputCatalog.systemDefault()?.name else { return "System Default" }
+        return "System Default (\(name))"
     }
 }

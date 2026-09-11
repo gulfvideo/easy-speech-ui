@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreAudio
 import Foundation
 import Observation
 import Speech
@@ -128,23 +129,78 @@ final class LiveTranscriber {
         self.engine = engine
 
         let input = engine.inputNode
-        let inputFormat = input.outputFormat(forBus: 0)
 
-        guard inputFormat.sampleRate > 0 else {
-            throw AudioSourceError.unreadable("No microphone input is available.")
+        // Must be set before the format is read: the input node reports the format of
+        // whichever device it's pointed at, and changing it afterwards invalidates the tap.
+        if let chosen = AudioInputCatalog.device(uid: AppSettings.shared.inputDeviceUID) {
+            selectInput(chosen, on: input)
         }
 
+        let inputFormat = input.outputFormat(forBus: 0)
+
+        guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+            throw AudioSourceError.unreadable(
+                "\(activeInputName) isn't providing any audio. Pick a different microphone and try again."
+            )
+        }
+
+        // The tap handler is built by a nonisolated function on purpose. A closure formed
+        // inside this @MainActor type inherits main-actor isolation, and AVAudioEngine
+        // calls the tap on a realtime audio thread — Swift then checks the executor,
+        // finds the wrong queue, and traps. That is a hard crash the moment recording
+        // starts, not a warning.
+        input.installTap(onBus: 0,
+                         bufferSize: 4096,
+                         format: inputFormat,
+                         block: Self.makeTapHandler(inputFormat: inputFormat,
+                                                    analyzerFormat: analyzerFormat,
+                                                    continuation: continuation))
+
+        engine.prepare()
+        try engine.start()
+    }
+
+    /// Points AVAudioEngine's input node at a specific device.
+    private func selectInput(_ device: AudioInputDevice, on input: AVAudioInputNode) {
+        guard let unit = input.audioUnit else { return }
+        var deviceID = device.id
+        AudioUnitSetProperty(unit,
+                             kAudioOutputUnitProperty_CurrentDevice,
+                             kAudioUnitScope_Global,
+                             0,
+                             &deviceID,
+                             UInt32(MemoryLayout<AudioDeviceID>.size))
+    }
+
+    /// Name of the device dictation will actually use, for messages and the picker.
+    var activeInputName: String {
+        let uid = AppSettings.shared.inputDeviceUID
+        if let chosen = AudioInputCatalog.device(uid: uid) { return chosen.name }
+        return AudioInputCatalog.systemDefault()?.name ?? "the default microphone"
+    }
+
+    /// Builds the realtime tap callback outside any actor.
+    ///
+    /// Everything it captures is either Sendable or boxed, and it touches no state
+    /// belonging to `LiveTranscriber`, so it is safe to run on the audio thread.
+    private nonisolated static func makeTapHandler(
+        inputFormat: AVAudioFormat,
+        analyzerFormat: AVAudioFormat,
+        continuation: AsyncStream<AnalyzerInput>.Continuation
+    ) -> @Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void {
         // The mic rarely matches the analyzer's 16 kHz mono, so convert on the audio thread.
         let converter = AVAudioConverter(from: inputFormat, to: analyzerFormat)
         let ratio = analyzerFormat.sampleRate / inputFormat.sampleRate
 
-        input.installTap(onBus: 0, bufferSize: 4096, format: inputFormat) { buffer, _ in
+        return { buffer, _ in
             guard let converter else {
-                continuation.yield(AnalyzerInput(buffer: buffer))
+                continuation.yield(AnalyzerInput(buffer: UncheckedBox(buffer).value))
                 return
             }
+
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1024
-            guard let output = AVAudioPCMBuffer(pcmFormat: analyzerFormat, frameCapacity: capacity) else { return }
+            guard let output = AVAudioPCMBuffer(pcmFormat: analyzerFormat,
+                                                frameCapacity: capacity) else { return }
 
             var error: NSError?
             let supplied = UncheckedFlag()
@@ -160,13 +216,11 @@ final class LiveTranscriber {
                 status.pointee = .haveData
                 return source.value
             }
+
             if error == nil, output.frameLength > 0 {
                 continuation.yield(AnalyzerInput(buffer: output))
             }
         }
-
-        engine.prepare()
-        try engine.start()
     }
 
     private func requestMicrophoneAccess() async -> Bool {

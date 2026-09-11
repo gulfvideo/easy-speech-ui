@@ -13,7 +13,7 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 ## Features
 
 - **Batch queue** — drop in a pile of files, processed one at a time
-- **Live transcription** from the microphone, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
+- **Live transcription** from any input device, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
 - **`.txt`, `.srt` and `.vtt`** output, with real word-level timestamps so subtitle cues break at natural pauses
 - **Translation** to 20+ languages, on-device, timestamps preserved
 - **Audio *or* video** — mp3, m4a, wav, aiff, flac and mp4, mov, m4v. Drop a recording straight in; EasySpeech reads the audio track itself, so there's no converting to MP3 first

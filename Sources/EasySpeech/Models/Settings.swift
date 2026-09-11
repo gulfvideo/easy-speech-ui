@@ -137,6 +137,12 @@ final class AppSettings {
         return URL(fileURLWithPath: watchFolderPath)
     }
 
+    /// UID of the input device for live dictation. Empty means the system default.
+    /// Stored by UID because CoreAudio device ids are reassigned when hardware moves.
+    var inputDeviceUID: String {
+        didSet { defaults.set(inputDeviceUID, forKey: "inputDeviceUID") }
+    }
+
     // MARK: Updates
 
     var automaticUpdateChecks: Bool {
@@ -202,6 +208,7 @@ final class AppSettings {
         watchFolderPath = defaults.string(forKey: "watchFolderPath") ?? ""
         corrections = (defaults.data(forKey: "corrections"))
             .flatMap { try? JSONDecoder().decode([Correction].self, from: $0) } ?? []
+        inputDeviceUID = defaults.string(forKey: "inputDeviceUID") ?? ""
         automaticUpdateChecks = defaults.bool(forKey: "automaticUpdateChecks")
         lastUpdateCheck = defaults.object(forKey: "lastUpdateCheck") as? Date
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"
