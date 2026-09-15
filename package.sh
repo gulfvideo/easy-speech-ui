@@ -49,6 +49,13 @@ detach() { hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true; cleanup; }
 trap detach EXIT
 
 echo "==> Arranging the window"
+# Finder needs a moment to register a freshly attached volume; asking too early fails
+# with "Can't get disk" and silently costs the DMG its layout.
+for _ in $(seq 20); do
+  osascript -e "tell application \"Finder\" to get name of disk \"$VOLUME\"" >/dev/null 2>&1 && break
+  sleep 0.5
+done
+
 # Finder is the only thing that can write these view settings into .DS_Store.
 if ! osascript <<APPLESCRIPT
 tell application "Finder"
