@@ -132,8 +132,14 @@ final class LiveTranscriber {
 
         // Must be set before the format is read: the input node reports the format of
         // whichever device it's pointed at, and changing it afterwards invalidates the tap.
-        if let chosen = AudioInputCatalog.device(uid: AppSettings.shared.inputDeviceUID) {
-            selectInput(chosen, on: input)
+        if let unit = input.audioUnit,
+           var deviceID = AudioInputCatalog.deviceID(uid: AppSettings.shared.inputDeviceUID) {
+            AudioUnitSetProperty(unit,
+                                 kAudioOutputUnitProperty_CurrentDevice,
+                                 kAudioUnitScope_Global,
+                                 0,
+                                 &deviceID,
+                                 UInt32(MemoryLayout<AudioDeviceID>.size))
         }
 
         let inputFormat = input.outputFormat(forBus: 0)
@@ -160,18 +166,6 @@ final class LiveTranscriber {
         try engine.start()
     }
 
-    /// Points AVAudioEngine's input node at a specific device.
-    private func selectInput(_ device: AudioInputDevice, on input: AVAudioInputNode) {
-        guard let unit = input.audioUnit else { return }
-        var deviceID = device.id
-        AudioUnitSetProperty(unit,
-                             kAudioOutputUnitProperty_CurrentDevice,
-                             kAudioUnitScope_Global,
-                             0,
-                             &deviceID,
-                             UInt32(MemoryLayout<AudioDeviceID>.size))
-    }
-
     /// Name of the device dictation will actually use, for messages and the picker.
     var activeInputName: String {
         let uid = AppSettings.shared.inputDeviceUID
@@ -194,7 +188,7 @@ final class LiveTranscriber {
 
         return { buffer, _ in
             guard let converter else {
-                continuation.yield(AnalyzerInput(buffer: UncheckedBox(buffer).value))
+                continuation.yield(AnalyzerInput(buffer: buffer))
                 return
             }
 
@@ -203,18 +197,17 @@ final class LiveTranscriber {
                                                 frameCapacity: capacity) else { return }
 
             var error: NSError?
-            let supplied = UncheckedFlag()
+            var supplied = false
             // `convert` invokes this synchronously on this same thread, so handing the
             // buffer straight through is safe despite AVAudioPCMBuffer not being Sendable.
-            let source = UncheckedBox(buffer)
             converter.convert(to: output, error: &error) { _, status in
-                if supplied.value {
+                if supplied {
                     status.pointee = .noDataNow
                     return nil
                 }
-                supplied.value = true
+                supplied = true
                 status.pointee = .haveData
-                return source.value
+                return buffer
             }
 
             if error == nil, output.frameLength > 0 {

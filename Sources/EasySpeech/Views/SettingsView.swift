@@ -91,15 +91,7 @@ struct GeneralSettings: View {
     }
 
     private func chooseWatchFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.prompt = "Watch"
-        PanelPresentation.present(panel) { accepted in
-            guard accepted, let url = panel.url else { return }
-            settings.watchFolderPath = url.path
-        }
+        PanelPresentation.chooseFolder(prompt: "Watch") { settings.watchFolderPath = $0.path }
     }
 }
 

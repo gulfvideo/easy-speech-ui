@@ -24,6 +24,21 @@ enum PanelPresentation {
         }
     }
 
+    /// Directory chooser. Both callers want exactly this panel, differing only in the
+    /// button title and where the path lands.
+    @MainActor
+    static func chooseFolder(prompt: String, completion: @escaping @MainActor (URL) -> Void) {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = prompt
+        present(panel) { accepted in
+            guard accepted, let url = panel.url else { return }
+            completion(url)
+        }
+    }
+
     /// Prefers the window the user is actually looking at, ignoring panels and popovers.
     @MainActor
     private static var anchorWindow: NSWindow? {

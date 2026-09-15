@@ -76,15 +76,7 @@ struct InspectorView: View {
     }
 
     private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.prompt = "Choose"
-        PanelPresentation.present(panel) { accepted in
-            guard accepted, let url = panel.url else { return }
-            settings.customOutputPath = url.path
-        }
+        PanelPresentation.chooseFolder(prompt: "Choose") { settings.customOutputPath = $0.path }
     }
 }
 

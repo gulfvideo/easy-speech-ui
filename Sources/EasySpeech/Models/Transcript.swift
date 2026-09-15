@@ -30,19 +30,16 @@ struct Transcript: Sendable, Hashable, Codable {
     /// Every word across all segments, in order. Used to build tight subtitle cues.
     var words: [TimedWord] { segments.flatMap(\.words) }
 
-    var plainText: String {
-        segments.map(\.text)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-    }
+    var plainText: String { joinedText(separator: " ") }
 
     /// Paragraph-per-segment rendering, which reads better than one long line.
-    var paragraphText: String {
+    var paragraphText: String { joinedText(separator: "\n\n") }
+
+    private func joinedText(separator: String) -> String {
         segments.map(\.text)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-            .joined(separator: "\n\n")
+            .joined(separator: separator)
     }
 
     var totalDuration: TimeInterval { segments.last?.end ?? 0 }

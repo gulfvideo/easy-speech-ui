@@ -8,16 +8,12 @@ import Foundation
 /// we re-chunk them into cues sized for reading.
 enum SubtitleWriter {
 
-    struct CueOptions: Sendable {
-        /// Roughly two 42-character lines, the broadcast convention.
-        var maxCharacters = 84
-        var maxDuration: TimeInterval = 6.0
-        /// A pause longer than this forces a cue break.
-        var maxGap: TimeInterval = 0.6
-        var maxLineLength = 42
-
-        static let `default` = CueOptions()
-    }
+    /// Cue sizing, to the broadcast convention: roughly two 42-character lines.
+    private static let maxCharacters = 84
+    private static let maxDuration: TimeInterval = 6.0
+    /// A pause longer than this forces a cue break.
+    private static let maxGap: TimeInterval = 0.6
+    private static let maxLineLength = 42
 
     struct Cue: Sendable {
         var index: Int
@@ -28,7 +24,7 @@ enum SubtitleWriter {
 
     // MARK: - Cue construction
 
-    static func cues(for transcript: Transcript, options: CueOptions = .default) -> [Cue] {
+    static func cues(for transcript: Transcript) -> [Cue] {
         let words = transcript.words
         guard !words.isEmpty else { return cuesFromSegments(transcript) }
 
@@ -42,7 +38,7 @@ enum SubtitleWriter {
             cues.append(Cue(index: cues.count + 1,
                             start: current.first!.start,
                             end: current.last!.end,
-                            text: wrap(text, limit: options.maxLineLength)))
+                            text: wrap(text, limit: maxLineLength)))
             current = []
         }
 
@@ -51,9 +47,9 @@ enum SubtitleWriter {
                 let wouldBeLength = current.map(\.text).joined().count + word.text.count
                 let wouldBeDuration = word.end - current[0].start
                 let gap = word.start - last.end
-                if wouldBeLength > options.maxCharacters
-                    || wouldBeDuration > options.maxDuration
-                    || gap > options.maxGap {
+                if wouldBeLength > maxCharacters
+                    || wouldBeDuration > maxDuration
+                    || gap > maxGap {
                     flush()
                 }
             }
@@ -130,25 +126,26 @@ enum SubtitleWriter {
 
     // MARK: - Serialization
 
-    static func srt(for transcript: Transcript, options: CueOptions = .default) -> String {
-        cues(for: transcript, options: options).map { cue in
-            """
-            \(cue.index)
-            \(timecode(cue.start, separator: ",")) --> \(timecode(cue.end, separator: ","))
-            \(cue.text)
-            """
-        }.joined(separator: "\n\n") + "\n"
+    static func srt(for transcript: Transcript) -> String {
+        serialize(transcript, separator: ",", header: "")
     }
 
-    static func vtt(for transcript: Transcript, options: CueOptions = .default) -> String {
-        let body = cues(for: transcript, options: options).map { cue in
+    static func vtt(for transcript: Transcript) -> String {
+        serialize(transcript, separator: ".", header: "WEBVTT\n\n")
+    }
+
+    /// SRT and WebVTT are the same cue list; they differ in the decimal mark and a header.
+    private static func serialize(_ transcript: Transcript,
+                                  separator: String,
+                                  header: String) -> String {
+        let body = cues(for: transcript).map { cue in
             """
             \(cue.index)
-            \(timecode(cue.start, separator: ".")) --> \(timecode(cue.end, separator: "."))
+            \(timecode(cue.start, separator: separator)) --> \(timecode(cue.end, separator: separator))
             \(cue.text)
             """
         }.joined(separator: "\n\n")
-        return "WEBVTT\n\n" + body + "\n"
+        return header + body + "\n"
     }
 
     /// Plain text, optionally prefixed with `[hh:mm:ss]` marks per segment.

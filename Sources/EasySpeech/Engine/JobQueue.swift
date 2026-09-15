@@ -38,7 +38,6 @@ final class JobQueue {
         watcher.start(watching: folder)
     }
 
-    var watchedFolder: URL? { watcher?.watchedURL }
     /// Non-nil when the watched folder can't be read, so the UI can say why.
     var watchProblem: String? { watcher?.accessProblem }
 

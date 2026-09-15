@@ -174,19 +174,11 @@ final class AppSettings {
     }
 
     private init() {
+        // Only the settings that default to *on* need registering: `bool(forKey:)`
+        // already returns false for a missing key, and the rest fall back below.
         defaults.register(defaults: [
             "writeText": true,
-            "writeSRT": false,
-            "writeVTT": false,
-            "timestampsInText": false,
-            "revealWhenDone": false,
             "showMenuBarExtra": true,
-            "openWhenDone": false,
-            "censorProfanity": false,
-            "translate": false,
-            "outputLocation": OutputLocation.alongsideSource.rawValue,
-            "translationTarget": "en",
-            "appearance": AppAppearance.system.rawValue,
             "automaticUpdateChecks": true
         ])
 
