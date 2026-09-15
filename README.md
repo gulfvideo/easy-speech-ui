@@ -86,7 +86,7 @@ through **Run Shell Script**.
 
 ## Updates
 
-EasySpeech checks its releases once a day. **Update and Relaunch** downloads, verifies and swaps the app in place, usually in under two seconds. There's a Check Now button and an off switch in **Settings › Updates**.
+EasySpeech checks its releases once a day. **Update and Relaunch** downloads, verifies and swaps the app in place, then reopens it, usually in under half a minute. There's a Check Now button and an off switch in **Settings › Updates**.
 
 ![The update sheet](docs/update-sheet.png)
 
