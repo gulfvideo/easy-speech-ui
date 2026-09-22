@@ -61,6 +61,13 @@ struct ContentView: View {
         }
         if queue.isProcessing {
             let remaining = queue.pendingCount
+            if queue.isPaused {
+                let active = queue.jobs.filter { $0.state.isActive }.count
+                if active > 0 {
+                    return "Paused — finishing \(active) in progress, \(remaining) left"
+                }
+                return "Paused — \(remaining) left"
+            }
             return remaining > 1 ? "Transcribing — \(remaining) files left" : "Transcribing"
         }
         let done = queue.jobs.filter { $0.state == .finished }.count
@@ -96,6 +103,21 @@ struct ContentView: View {
         .sharedBackgroundVisibility(.hidden)
 
         ToolbarSpacer(.fixed, placement: .primaryAction)
+
+        ToolbarItem(placement: .primaryAction) {
+            if queue.isProcessing {
+                Button {
+                    queue.isPaused ? queue.resume() : queue.pause()
+                } label: {
+                    Label(queue.isPaused ? "Resume" : "Pause",
+                          systemImage: queue.isPaused ? "play.fill" : "pause.fill")
+                }
+                .labelStyle(.titleAndIcon)
+                .help(queue.isPaused
+                      ? "Start taking files again"
+                      : "Stop taking new files. Anything already transcribing finishes.")
+            }
+        }
 
         ToolbarItem(placement: .primaryAction) {
             if queue.isProcessing {

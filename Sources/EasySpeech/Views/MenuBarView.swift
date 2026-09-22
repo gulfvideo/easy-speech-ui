@@ -38,6 +38,9 @@ struct MenuBarView: View {
         }
 
         if queue.isProcessing {
+            Button(queue.isPaused ? "Resume Queue" : "Pause Queue") {
+                queue.isPaused ? queue.resume() : queue.pause()
+            }
             Button("Stop Queue") { queue.cancelAll() }
         }
 
@@ -66,6 +69,7 @@ struct MenuBarView: View {
         guard queue.isProcessing else { return "EasySpeech — Idle" }
 
         let remaining = queue.pendingCount
+        if queue.isPaused { return "Paused — \(remaining) files left" }
         return remaining == 1 ? "Transcribing 1 file" : "Transcribing \(remaining) files"
     }
 

@@ -154,3 +154,13 @@ roughly 35% of a single core on an 18-core machine. Raising it trades per-file l
 batch throughput. Past 6 the curve turns over, so the setting stops there.
 
 The limit is read once when a run starts, so changing it mid-batch applies to the next run.
+
+`pause()` sets a flag that makes `claimNextQueued()` return nil; files already running finish
+and are written out, because `SpeechAnalyzer` has no way to suspend a stream and stopping one
+would throw the work away. The drain deliberately stays alive while paused (polling every
+200 ms) rather than exiting — otherwise Resume races the wind-down and the queue can stall
+with work still in it.
+
+The slot check happens *before* claiming a job, not after. Claiming first marks one extra file
+`.preparing` while it waits for a slot, which both miscounts the active files and lets one more
+start after a pause.

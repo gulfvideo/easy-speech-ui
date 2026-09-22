@@ -14,6 +14,8 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 
 - **Batch queue** — drop in a pile of files, **1–6 at a time**. One transcription doesn't keep the Neural Engine busy, so a large batch finishes several times faster in parallel
 - **Skips what's already done** — point it at a folder you've run before and it leaves out anything whose transcript is already there, so an interrupted run picks up where it stopped
+- **Pause a long run** and get the machine back, then pick up where you left off. Files already transcribing finish and are written out; nothing new starts until you resume
+- **Move to Top of Queue** — right-click anything still waiting to jump it ahead of the rest
 - **Live transcription** from any input device, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
 - **`.txt`, `.srt` and `.vtt`** output, with real word-level timestamps so subtitle cues break at natural pauses
 - **Translation** to 20+ languages, on-device, timestamps preserved

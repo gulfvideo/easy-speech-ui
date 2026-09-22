@@ -14,6 +14,9 @@ final class JobQueue {
 
     var jobs: [Job] = []
     private(set) var isProcessing = false
+    /// Paused means "start nothing new". Files already transcribing run to the end, because
+    /// SpeechAnalyzer has no way to suspend a stream — stopping one would throw the work away.
+    private(set) var isPaused = false
     private(set) var modelDownload: Progress?
 
     private var worker: Task<Void, Never>?
@@ -21,6 +24,9 @@ final class JobQueue {
     private let settings = AppSettings.shared
 
     var pendingCount: Int { jobs.filter { !$0.state.isTerminal }.count }
+    /// True while any file is still waiting to start.
+    var hasQueuedWork: Bool { jobs.contains { if case .queued = $0.state { true } else { false } } }
+
     /// How many files the last add dropped because their output already existed.
     private(set) var lastSkippedCount = 0
     var activeJob: Job? { jobs.first { $0.state.isActive } }
@@ -66,6 +72,31 @@ final class JobQueue {
         jobs.removeAll { $0.id == job.id }
     }
 
+    /// Moves a queued job in front of everything else still waiting.
+    ///
+    /// Only reorders the waiting tail: files already transcribing keep going, and the job
+    /// lands after them rather than at index 0, so the list still reads top to bottom in
+    /// the order work actually happens.
+    func moveToTopOfQueue(_ job: Job) {
+        guard case .queued = job.state else { return }
+        guard let from = jobs.firstIndex(where: { $0.id == job.id }) else { return }
+
+        let insertAt = jobs.firstIndex { if case .queued = $0.state { true } else { false } }
+        guard let insertAt, insertAt != from else { return }
+
+        jobs.remove(at: from)
+        jobs.insert(job, at: insertAt)
+    }
+
+    /// True when there is anything ahead of this job that it could jump.
+    func canMoveToTopOfQueue(_ job: Job) -> Bool {
+        guard case .queued = job.state else { return false }
+        guard let first = jobs.firstIndex(where: { if case .queued = $0.state { true } else { false } }),
+              let mine = jobs.firstIndex(where: { $0.id == job.id })
+        else { return false }
+        return mine > first
+    }
+
     func clearFinished() {
         jobs.removeAll { $0.state.isTerminal }
     }
@@ -83,9 +114,23 @@ final class JobQueue {
         worker = Task { await drain() }
     }
 
+    /// Stops taking new files. Anything mid-flight finishes and is written out.
+    func pause() {
+        guard isProcessing, !isPaused else { return }
+        isPaused = true
+    }
+
+    func resume() {
+        guard isPaused else { return }
+        isPaused = false
+        // Covers the case where the drain did finish — e.g. paused after the last file.
+        startIfIdle()
+    }
+
     func cancelAll() {
         worker?.cancel()
         worker = nil
+        isPaused = false
         isProcessing = false
         modelDownload = nil
         for job in jobs where !job.state.isTerminal {
@@ -129,14 +174,22 @@ final class JobQueue {
 
         await withTaskGroup(of: Void.self) { group in
             var running = 0
-            while let job = claimNextQueued() {
-                if Task.isCancelled {
-                    job.state = .cancelled
-                    break
-                }
+            while !Task.isCancelled {
+                // Wait for a free slot *before* claiming. Claiming first would mark a
+                // seventh file active while it sat waiting, and would let one more start
+                // after a pause.
                 if running >= limit {
                     await group.next()
                     running -= 1
+                }
+                guard let job = claimNextQueued() else {
+                    // Paused: keep this drain alive rather than letting it finish, so Resume
+                    // picks straight back up instead of racing the wind-down.
+                    if isPaused, hasQueuedWork {
+                        try? await Task.sleep(for: .milliseconds(200))
+                        continue
+                    }
+                    break
                 }
                 group.addTask { await self.process(job) }
                 running += 1
@@ -148,6 +201,7 @@ final class JobQueue {
     /// Takes the next queued job and marks it claimed in the same main-actor step, so two
     /// workers can never pull the same file.
     private func claimNextQueued() -> Job? {
+        guard !isPaused else { return nil }
         guard let job = jobs.first(where: { if case .queued = $0.state { true } else { false } })
         else { return nil }
         job.state = .preparing

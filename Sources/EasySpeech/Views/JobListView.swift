@@ -57,6 +57,11 @@ struct JobListView: View {
 
         Divider()
 
+        Button("Move to Top of Queue") { queue.moveToTopOfQueue(job) }
+            .disabled(!queue.canMoveToTopOfQueue(job))
+
+        Divider()
+
         Button("Transcribe Again") { queue.retry(job) }
             .disabled(!job.state.isTerminal)
 

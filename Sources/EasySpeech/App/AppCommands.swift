@@ -39,6 +39,12 @@ struct AppCommands: Commands {
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(queue.isProcessing || queue.pendingCount == 0)
 
+            Button(queue.isPaused ? "Resume Queue" : "Pause Queue") {
+                queue.isPaused ? queue.resume() : queue.pause()
+            }
+            .keyboardShortcut("p", modifiers: [.command, .shift])
+            .disabled(!queue.isProcessing)
+
             Button("Stop") { queue.cancelAll() }
                 .keyboardShortcut(".", modifiers: .command)
                 .disabled(!queue.isProcessing)
