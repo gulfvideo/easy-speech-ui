@@ -41,6 +41,18 @@ Packaging/        DMG background generator
 
 ## Things that will bite you
 
+**Never clamp an `@Observable` property inside its own `didSet`.** Writing
+`x = clamp(x)` in `didSet` is a normal idiom for a stored property — Swift suppresses the
+re-entry. The `@Observable` macro rewrites the stored property into a computed one, and that
+suppression is gone: the assignment calls the setter, which runs `didSet`, which assigns again,
+until the stack guard page is hit. It shipped in 1.2.6 as `concurrentJobs` and crashed the app
+every time the setting was changed — 74,546 frames deep.
+
+It is invisible from the call site, compiles clean, passes the linter, and survives any test that
+only ever *reads* the property. Clamp where the value is read instead (`init`, and the point of
+use). `build.sh` now refuses to build if any property assigns to itself inside its own `didSet`;
+that check exists because nothing else catches this.
+
 **The analyzer's audio format is Int16, not Float32.** `SpeechAnalyzer.bestAvailableAudioFormat`
 returns 16 kHz mono **Int16**. Reaching for `AVAudioPCMBuffer.floatChannelData` gets you `nil`,
 every buffer is silently dropped, and the run "succeeds" instantly with an empty transcript and no
