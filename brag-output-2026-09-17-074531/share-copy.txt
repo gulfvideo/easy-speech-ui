@@ -1,0 +1,5 @@
+Pleased to announce EasySpeech has closed a $0 Series A.
+
+Cloud spend is $0, headcount is 1, and 24 hours of audio takes 954 seconds. Every number in the video is real. It's a free 2 MB Mac app and nothing ever leaves your machine.
+
+github.com/gulfvideo/easy-speech-ui

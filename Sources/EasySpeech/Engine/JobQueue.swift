@@ -2,11 +2,12 @@ import AppKit
 import Foundation
 import Observation
 
-/// Sequential batch queue.
+/// Batch queue, running `AppSettings.concurrentJobs` files at a time.
 ///
-/// Files are processed one at a time, in order, because the Neural Engine is the
-/// bottleneck — running several at once makes every file slower rather than the batch
-/// faster.
+/// A single transcription does not saturate the Neural Engine, so running several at once
+/// raises throughput even though each individual file slows down. Measured on an M5 Pro over
+/// 30-minute files: 72x realtime at 1, 207x at 4, 255x at 6, falling back to 248x at 8. The
+/// setting is capped at 6 because that is where the curve turns over.
 @MainActor
 @Observable
 final class JobQueue {
@@ -20,6 +21,8 @@ final class JobQueue {
     private let settings = AppSettings.shared
 
     var pendingCount: Int { jobs.filter { !$0.state.isTerminal }.count }
+    /// How many files the last add dropped because their output already existed.
+    private(set) var lastSkippedCount = 0
     var activeJob: Job? { jobs.first { $0.state.isActive } }
 
     /// Starts, stops or re-points the watched folder to match the current settings.
@@ -46,9 +49,12 @@ final class JobQueue {
     @discardableResult
     func add(_ urls: [URL]) -> Int {
         let existing = Set(jobs.map(\.url))
-        let fresh = urls
+        let supported = urls
             .filter { !existing.contains($0) }
             .filter { AudioSource.supportedExtensions.contains($0.pathExtension.lowercased()) }
+
+        let fresh = supported.filter { !alreadyTranscribed($0) }
+        lastSkippedCount = supported.count - fresh.count
 
         jobs.append(contentsOf: fresh.map(Job.init(url:)))
         if !fresh.isEmpty { startIfIdle() }
@@ -87,6 +93,27 @@ final class JobQueue {
         }
     }
 
+    /// True when every file this run would write already exists in the destination.
+    ///
+    /// Checked against the destination rather than the source folder, so a custom output
+    /// folder is honoured. Deliberately requires *all* enabled formats to be present: turning
+    /// on .srt later should re-run files that only have a .txt, not skip them.
+    private func alreadyTranscribed(_ url: URL) -> Bool {
+        guard settings.skipAlreadyTranscribed, settings.writesAnyFile else { return false }
+
+        let extensions = settings.enabledOutputExtensions
+        guard !extensions.isEmpty else { return false }
+
+        let folder = settings.outputFolder(for: url)
+        let base = url.deletingPathExtension().lastPathComponent
+
+        return extensions.allSatisfy { ext in
+            FileManager.default.fileExists(
+                atPath: folder.appendingPathComponent(base).appendingPathExtension(ext).path
+            )
+        }
+    }
+
     // MARK: - Processing
 
     private func drain() async {
@@ -97,13 +124,34 @@ final class JobQueue {
             worker = nil
         }
 
-        while let job = jobs.first(where: { if case .queued = $0.state { true } else { false } }) {
-            if Task.isCancelled {
-                job.state = .cancelled
-                return
+        // Read once: changing the setting mid-run applies to the next run, not this one.
+        let limit = AppSettings.clampConcurrency(settings.concurrentJobs)
+
+        await withTaskGroup(of: Void.self) { group in
+            var running = 0
+            while let job = claimNextQueued() {
+                if Task.isCancelled {
+                    job.state = .cancelled
+                    break
+                }
+                if running >= limit {
+                    await group.next()
+                    running -= 1
+                }
+                group.addTask { await self.process(job) }
+                running += 1
             }
-            await process(job)
+            await group.waitForAll()
         }
+    }
+
+    /// Takes the next queued job and marks it claimed in the same main-actor step, so two
+    /// workers can never pull the same file.
+    private func claimNextQueued() -> Job? {
+        guard let job = jobs.first(where: { if case .queued = $0.state { true } else { false } })
+        else { return nil }
+        job.state = .preparing
+        return job
     }
 
     private func process(_ job: Job) async {

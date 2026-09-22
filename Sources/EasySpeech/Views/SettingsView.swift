@@ -44,6 +44,22 @@ struct GeneralSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section("Batch") {
+                Picker("Transcribe at once", selection: $settings.concurrentJobs) {
+                    ForEach(Array(AppSettings.concurrencyRange), id: \.self) { n in
+                        Text(n == 1 ? "1 file" : "\(n) files").tag(n)
+                    }
+                }
+                Text("One file at a time doesn't keep the Neural Engine busy. Raising this finishes a large batch several times faster, though each individual file takes longer and the Mac works harder. Applies to the next run.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("Skip files already transcribed", isOn: $settings.skipAlreadyTranscribed)
+                Text("Leaves out any file whose output is already in the destination folder, so a folder can be re-run after an interruption without doing the finished ones again.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Watched Folder") {
                 Toggle("Transcribe anything added to a folder", isOn: $settings.watchFolderEnabled)
 

@@ -137,6 +137,46 @@ final class AppSettings {
         return URL(fileURLWithPath: watchFolderPath)
     }
 
+    // MARK: Batch
+
+    /// How many files transcribe at once, 1...6.
+    ///
+    /// One stream does not saturate the Neural Engine. Measured on an M5 Pro over 30-minute
+    /// files: 72x realtime at 1, 207x at 4, 255x at 6, and it falls off again at 8. Individual
+    /// files get slower, the batch finishes sooner.
+    var concurrentJobs: Int {
+        didSet {
+            concurrentJobs = Self.clampConcurrency(concurrentJobs)
+            defaults.set(concurrentJobs, forKey: "concurrentJobs")
+        }
+    }
+
+    static let concurrencyRange = 1...6
+
+    static func clampConcurrency(_ value: Int) -> Int {
+        min(max(value, concurrencyRange.lowerBound), concurrencyRange.upperBound)
+    }
+
+    /// Skip a file when everything it would write is already sitting in the destination.
+    /// Lets a folder be re-run after an interruption without redoing what finished.
+    var skipAlreadyTranscribed: Bool {
+        didSet { defaults.set(skipAlreadyTranscribed, forKey: "skipAlreadyTranscribed") }
+    }
+
+    /// The file extensions a run would currently produce.
+    var enabledOutputExtensions: [String] {
+        var exts: [String] = []
+        if writeText { exts.append("txt") }
+        if writeSRT { exts.append("srt") }
+        if writeVTT { exts.append("vtt") }
+        return exts
+    }
+
+    /// Where `source` would be written, honouring the custom-folder setting.
+    func outputFolder(for source: URL) -> URL {
+        customOutputURL ?? source.deletingLastPathComponent()
+    }
+
     /// UID of the input device for live dictation. Empty means the system default.
     /// Stored by UID because CoreAudio device ids are reassigned when hardware moves.
     var inputDeviceUID: String {
@@ -179,6 +219,8 @@ final class AppSettings {
         defaults.register(defaults: [
             "writeText": true,
             "showMenuBarExtra": true,
+            "skipAlreadyTranscribed": true,
+            "concurrentJobs": 1,
             "automaticUpdateChecks": true
         ])
 
@@ -201,6 +243,8 @@ final class AppSettings {
         corrections = (defaults.data(forKey: "corrections"))
             .flatMap { try? JSONDecoder().decode([Correction].self, from: $0) } ?? []
         inputDeviceUID = defaults.string(forKey: "inputDeviceUID") ?? ""
+        concurrentJobs = Self.clampConcurrency(defaults.integer(forKey: "concurrentJobs"))
+        skipAlreadyTranscribed = defaults.bool(forKey: "skipAlreadyTranscribed")
         automaticUpdateChecks = defaults.bool(forKey: "automaticUpdateChecks")
         lastUpdateCheck = defaults.object(forKey: "lastUpdateCheck") as? Date
         translationTarget = defaults.string(forKey: "translationTarget") ?? "en"

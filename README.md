@@ -12,7 +12,8 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 
 ## Features
 
-- **Batch queue** — drop in a pile of files, processed one at a time
+- **Batch queue** — drop in a pile of files, **1–6 at a time**. One transcription doesn't keep the Neural Engine busy, so a large batch finishes several times faster in parallel
+- **Skips what's already done** — point it at a folder you've run before and it leaves out anything whose transcript is already there, so an interrupted run picks up where it stopped
 - **Live transcription** from any input device, and **menu bar dictation**: start from the status item, talk, stop, and the text is on your clipboard
 - **`.txt`, `.srt` and `.vtt`** output, with real word-level timestamps so subtitle cues break at natural pauses
 - **Translation** to 20+ languages, on-device, timestamps preserved
@@ -28,6 +29,18 @@ No cloud, no API keys, no models to download and manage, no Python, no Electron,
 ## Performance
 
 **24 hours of podcasts and sermons — 15 files — transcribed in 954 seconds.** That's **90× realtime**, with peak memory of **39 MB** and no failures.
+
+A single transcription doesn't saturate the Neural Engine, so **Settings › General › Batch** lets a run take on up to six files at once. Measured on an M5 Pro over 30-minute files:
+
+```
+1 at a time     72× realtime
+2               121×
+4               207×
+6               255×
+8               248×   ← past the knee
+```
+
+Each individual file gets slower; the batch finishes sooner. Six is the cap because that's where the curve turns over.
 
 The Neural Engine does the recognition, so the machine stays responsive throughout. Memory is flat regardless of length: it plateaus after the third file and stays there, and repeating one clip 25 times in a single run drifted half a megabyte.
 

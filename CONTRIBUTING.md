@@ -31,7 +31,7 @@ Sources/EasySpeech/
 │   ├── TranscriptPlayer.swift       Click-a-line playback
 │   ├── UpdateChecker.swift          GitHub release discovery
 │   ├── Updater.swift                Download, verify, swap, relaunch
-│   └── JobQueue.swift               Sequential batch processing
+│   └── JobQueue.swift               Batch processing, 1-6 files at once
 ├── Export/       SRT / VTT / text writers, number repair, corrections
 └── Views/        SwiftUI interface
 
@@ -131,3 +131,26 @@ Cross-checked against an independent `whisper.cpp` (`medium.en`) transcript of t
 minute recording: **89.2% word-level agreement**, word counts 0.4% apart, runs of 116 consecutive
 identical words, full timeline coverage with zero gaps over 20 seconds, and no hallucination loops
 in either. Two independent engines landing that close is good evidence neither is drifting.
+
+## Batch concurrency
+
+`JobQueue` runs `AppSettings.concurrentJobs` files at once through a task group with a
+concurrency cap. The queue is `@MainActor`, which is what makes it safe: `claimNextQueued()`
+takes a job and marks it `.preparing` in the same main-actor step, so two workers can never
+pull the same file. Main-actor isolation does not serialise the work itself — each
+`process(_:)` suspends at its first `await` and the real transcription happens off the actor,
+which is why several can be in flight at once.
+
+The cap of 6 is measured, not arbitrary. On an M5 Pro over 30-minute files:
+
+```
+1 at a time   72× realtime      4   207×
+2             121×              6   255×
+                                8   248×   ← past the knee
+```
+
+One stream does not saturate the Neural Engine — at concurrency 1 the whole app sits at
+roughly 35% of a single core on an 18-core machine. Raising it trades per-file latency for
+batch throughput. Past 6 the curve turns over, so the setting stops there.
+
+The limit is read once when a run starts, so changing it mid-batch applies to the next run.

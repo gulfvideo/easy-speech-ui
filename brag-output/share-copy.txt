@@ -1,0 +1,5 @@
+I got tired of uploading audio to other people's servers just to get a transcript back, so I built my own.
+
+EasySpeech runs entirely on your Mac and nothing ever leaves it. 24 hours of audio took 954 seconds. It's free, it's a 2 MB download, and there's no account.
+
+github.com/gulfvideo/easy-speech-ui

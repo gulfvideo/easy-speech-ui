@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>EasySpeech — Series A</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --navy-top: #144a8a;
+        --navy-bot: #051226;
+        --paper: #f7f8fa;
+        --ink: #0b1b33;
+        --accent: #2f6fc9;
+        --muted: #4f5a68;
+        --hair: #d3d8e0;
+      }
+
+      body {
+        margin: 0;
+        background: var(--navy-bot);
+        font-family: system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Navy bookend slides */
+      .navy {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(180deg, var(--navy-top) 0%, var(--navy-bot) 78%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #f5ffff;
+      }
+      #glow {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 1500px;
+        height: 1500px;
+        margin: -750px 0 0 -750px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(97, 158, 232, 0.26) 0%, rgba(97, 158, 232, 0) 62%);
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      /* White deck slides */
+      .deck {
+        position: absolute;
+        inset: 0;
+        background: var(--paper);
+        padding: 96px 140px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+      }
+      .slug {
+        display: flex;
+        align-items: baseline;
+        gap: 22px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid var(--hair);
+      }
+      .slug .num {
+        font-family: ui-monospace, monospace;
+        font-size: 26px;
+        color: var(--accent);
+        letter-spacing: 0.04em;
+      }
+      .slug .lab {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        color: var(--muted);
+      }
+      .deck-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 0;
+      }
+
+      /* ---------- Scene 1 ---------- */
+      .eyebrow {
+        font-size: 21px;
+        font-weight: 500;
+        letter-spacing: 0.26em;
+        color: #9ed4ff;
+        margin: 0 0 58px;
+      }
+      .ann-1 {
+        margin: 0;
+        font-size: 66px;
+        font-weight: 300;
+        letter-spacing: 0.004em;
+        color: #cfe4f7;
+      }
+      .ann-2 {
+        margin: 26px 0 0;
+        font-size: 150px;
+        font-weight: 600;
+        letter-spacing: -0.022em;
+        line-height: 1;
+        color: #f5ffff;
+      }
+
+      /* ---------- Scene 2 ---------- */
+      .problem {
+        margin: 0;
+        font-size: 82px;
+        font-weight: 300;
+        line-height: 1.26;
+        letter-spacing: -0.006em;
+        max-width: 1480px;
+        color: var(--ink);
+      }
+
+      /* ---------- Scene 3: the app window ---------- */
+      #s3 .deck-body {
+        align-items: center;
+      }
+      .win {
+        width: 1340px;
+        height: 700px;
+        border-radius: 13px;
+        background: #ececee;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--hair);
+        box-shadow: 0 34px 70px rgba(11, 27, 51, 0.17);
+        font-size: 19px;
+        color: #1d1d1f;
+      }
+      .win-bar {
+        height: 66px;
+        flex: 0 0 66px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 0 20px;
+        background: #e6e6e9;
+        border-bottom: 1px solid #d6d6da;
+      }
+      .lights {
+        display: flex;
+        gap: 8px;
+      }
+      .lights span {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #c9c9cd;
+      }
+      .win-title {
+        margin-left: 210px;
+        line-height: 1.15;
+      }
+      .win-title b {
+        display: block;
+        font-size: 19px;
+        font-weight: 600;
+      }
+      .win-title em {
+        display: block;
+        font-size: 15px;
+        font-style: normal;
+        color: #5f5f64;
+      }
+      .pill {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 18px;
+        border-radius: 999px;
+        background: #dcdce0;
+        color: #56565b;
+        font-size: 16px;
+      }
+      .pill .live {
+        color: #1d1d1f;
+        font-weight: 500;
+      }
+      .win-body {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .side {
+        width: 340px;
+        flex: 0 0 340px;
+        background: #e3e3e6;
+        border-right: 1px solid #d6d6da;
+        padding: 14px 0;
+      }
+      .side h4 {
+        margin: 5px 0 10px 20px;
+        font-size: 15px;
+        font-weight: 500;
+        color: #5f5f64;
+      }
+      .frow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 20px;
+        margin: 0 9px;
+        border-radius: 8px;
+      }
+      .frow .tick {
+        width: 24px;
+        height: 24px;
+        flex: 0 0 24px;
+        border-radius: 50%;
+        background: #cdcdd2;
+        position: relative;
+      }
+      .frow .tick svg {
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        opacity: 0;
+      }
+      .frow .meta b {
+        display: block;
+        font-size: 17px;
+        font-weight: 500;
+      }
+      .frow .meta em {
+        display: block;
+        margin-top: 2px;
+        font-size: 15px;
+        font-style: normal;
+        color: #5f5f64;
+      }
+      .transcript {
+        flex: 1;
+        padding: 30px 36px;
+        background: #fff;
+        min-width: 0;
+      }
+      .transcript p {
+        margin: 0 0 24px;
+        font-size: 21px;
+        line-height: 1.5;
+        opacity: 0;
+      }
+      .transcript p.hl {
+        background: #e8effc;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-left: -14px;
+      }
+      .insp {
+        width: 330px;
+        flex: 0 0 330px;
+        background: #e3e3e6;
+        border-left: 1px solid #d6d6da;
+        padding: 16px;
+      }
+      .insp h5 {
+        margin: 10px 0 8px 5px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #5f5f64;
+      }
+      .irow {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #fff;
+        border-radius: 8px;
+        padding: 13px 14px;
+        margin-bottom: 3px;
+        font-size: 17px;
+      }
+      .sw {
+        width: 42px;
+        height: 25px;
+        border-radius: 999px;
+        background: #d8d8dd;
+        position: relative;
+      }
+      .sw.on {
+        background: var(--accent);
+      }
+      .sw::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 19px;
+        height: 19px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .sw.on::after {
+        left: 20px;
+      }
+      .win-foot {
+        height: 56px;
+        flex: 0 0 56px;
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        padding: 0 24px;
+        background: #e6e6e9;
+        border-top: 1px solid #d6d6da;
+        font-size: 16px;
+        color: #4a4a4f;
+      }
+      .win-foot .g {
+        opacity: 0;
+      }
+
+      /* ---------- Scene 4: traction ---------- */
+      #metrics {
+        display: flex;
+        gap: 28px;
+      }
+      .card {
+        flex: 1;
+        border: 1px solid var(--hair);
+        border-radius: 10px;
+        background: #fff;
+        padding: 34px 32px;
+        opacity: 0;
+      }
+      .card .fig {
+        font-size: 82px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .card .cap {
+        margin-top: 16px;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.15em;
+        color: var(--muted);
+      }
+      #chartwrap {
+        margin-top: 54px;
+        opacity: 0;
+      }
+      .chart-lab {
+        font-family: ui-monospace, monospace;
+        font-size: 17px;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin-bottom: 14px;
+      }
+      #chart {
+        position: relative;
+        height: 96px;
+        border-left: 1px solid var(--hair);
+        border-bottom: 1px solid var(--hair);
+      }
+      #zeroline {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        height: 3px;
+        width: 100%;
+        background: var(--accent);
+        border-radius: 2px;
+        transform-origin: 0% 50%;
+      }
+      #zerotag {
+        position: absolute;
+        right: 0;
+        bottom: 14px;
+        font-family: ui-monospace, monospace;
+        font-size: 26px;
+        font-weight: 600;
+        color: var(--accent);
+        opacity: 0;
+      }
+      .footnote {
+        margin-top: 30px;
+        font-size: 14px;
+        color: var(--muted);
+        letter-spacing: 0.01em;
+        opacity: 0;
+      }
+
+      /* ---------- Scene 5 ---------- */
+      #tile {
+        width: 232px;
+        height: 232px;
+        border-radius: 52px;
+        background: linear-gradient(180deg, #144a8a 0%, #051226 100%);
+        box-shadow: 0 34px 78px rgba(2, 8, 20, 0.6);
+        display: grid;
+        place-items: center;
+      }
+      #tile svg {
+        width: 162px;
+        height: 162px;
+        overflow: visible;
+      }
+      .wordmark {
+        margin: 46px 0 0;
+        font-size: 74px;
+        font-weight: 600;
+        letter-spacing: -0.012em;
+        color: #f5ffff;
+      }
+      .punch {
+        margin: 34px 0 0;
+        font-size: 62px;
+        font-weight: 300;
+        letter-spacing: -0.004em;
+        color: #9ed4ff;
+      }
+      .sub {
+        margin: 26px 0 0;
+        font-size: 30px;
+        font-weight: 300;
+        color: #cfe4f7;
+      }
+      .url {
+        margin: 30px 0 0;
+        font-size: 25px;
+        color: #7fb6f0;
+        letter-spacing: 0.02em;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="brag"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="19.6"
+    >
+      <!-- ============ Scene 1 — the announcement ============ -->
+      <section id="s1" class="clip" data-start="0" data-duration="3.45" data-track-index="0">
+        <div class="navy">
+          <div id="glow"></div>
+          <p class="eyebrow" id="eyebrow">PRESS RELEASE · SEPTEMBER 2026</p>
+          <p class="ann-1" id="ann1">Today we're excited to announce</p>
+          <p class="ann-2" id="ann2">our $0 Series A.</p>
+        </div>
+      </section>
+
+      <!-- ============ Scene 2 — 01 the problem ============ -->
+      <section id="s2" class="clip" data-start="3.4" data-duration="3.05" data-track-index="1">
+        <div class="deck">
+          <div class="slug"><span class="num">01</span><span class="lab">THE PROBLEM</span></div>
+          <div class="deck-body">
+            <p class="problem" id="prob">
+              Transcription means uploading your audio to someone else's computer.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 3 — 02 the product ============ -->
+      <section id="s3" class="clip" data-start="6.4" data-duration="5.05" data-track-index="2">
+        <div class="deck">
+          <div class="slug"><span class="num">02</span><span class="lab">THE PRODUCT</span></div>
+          <div class="deck-body">
+            <div class="win" id="win">
+              <div class="win-bar">
+                <div class="lights"><span></span><span></span><span></span></div>
+                <div class="win-title"><b>EasySpeech</b><em>3 transcribed</em></div>
+                <div class="pill">Start <span class="live">Live</span></div>
+              </div>
+              <div class="win-body">
+                <div class="side">
+                  <h4>Files</h4>
+                  <div class="frow" id="f1">
+                    <div class="tick">
+                      <svg width="15" height="15" viewBox="0 0 16 16">
+                        <path d="M3 8.5l3.2 3.2L13 5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </div>
+                    <div class="meta"><b>Product Launch Meeting.m4a</b><em>0:16 · 38× realtime</em></div>
+                  </div>
+                  <div class="frow" id="f2">
+                    <div class="tick">
+                      <svg width="15" height="15" viewBox="0 0 16 16">
+                        <path d="M3 8.5l3.2 3.2L13 5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </div>
+                    <div class="meta"><b>Field Interview.wav</b><em>0:10 · 74× realtime</em></div>
+                  </div>
+                  <div class="frow" id="f3">
+                    <div class="tick">
+                      <svg width="15" height="15" viewBox="0 0 16 16">
+                        <path d="M3 8.5l3.2 3.2L13 5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </div>
+                    <div class="meta"><b>Recorded Lecture.mp4</b><em>0:05 · 51× realtime</em></div>
+                  </div>
+                </div>
+                <div class="transcript">
+                  <p class="tp">All right, let's get started.</p>
+                  <p class="tp">The main thing I want to cover today is the timeline for the next release.</p>
+                  <p class="tp">We are looking at shipping the first version by the end of the month, which gives us about 3 weeks for testing.</p>
+                  <p class="tp hl">Marcus, can you walk us through where the backend work stands right now?</p>
+                </div>
+                <div class="insp">
+                  <h5>Output Files</h5>
+                  <div class="irow">Plain text (.txt)<span class="sw on"></span></div>
+                  <div class="irow">Subtitles (.srt)<span class="sw"></span></div>
+                  <div class="irow">Web subtitles (.vtt)<span class="sw"></span></div>
+                  <h5>Recognition</h5>
+                  <div class="irow">Language<span style="color: #5f5f64">English (US)</span></div>
+                  <div class="irow">Mask profanity<span class="sw"></span></div>
+                </div>
+              </div>
+              <div class="win-foot">
+                <span>3 files</span>
+                <span class="g">0:15 / 0:16</span>
+                <span class="g">55 words</span>
+                <span class="g">38× realtime</span>
+                <span class="g" style="margin-left: auto">1 file written</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 4 — 03 traction ============ -->
+      <section id="s4" class="clip" data-start="11.4" data-duration="4.47" data-track-index="3">
+        <div class="deck">
+          <div class="slug"><span class="num">03</span><span class="lab">TRACTION</span></div>
+          <div class="deck-body">
+            <div id="metrics">
+              <div class="card"><div class="fig">90×</div><div class="cap">REALTIME</div></div>
+              <div class="card"><div class="fig">2 MB</div><div class="cap">BUNDLE SIZE</div></div>
+              <div class="card"><div class="fig">$0</div><div class="cap">CLOUD SPEND</div></div>
+              <div class="card"><div class="fig">1</div><div class="cap">ENGINEER</div></div>
+            </div>
+            <div id="chartwrap">
+              <div class="chart-lab">INFRASTRUCTURE COSTS · 12 MO</div>
+              <div id="chart">
+                <div id="zeroline"></div>
+                <div id="zerotag">$0</div>
+              </div>
+            </div>
+            <p class="footnote" id="foot">
+              Measured over 24 hours of source audio across 15 files. Peak memory 39 MB. No
+              forward-looking statements.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Scene 5 — outro ============ -->
+      <section id="s5" class="clip" data-start="15.824" data-duration="3.78" data-track-index="4">
+        <div class="navy">
+          <div id="tile">
+            <svg viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="mk" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#F5FFFF" />
+                  <stop offset="1" stop-color="#9ED4FF" />
+                </linearGradient>
+              </defs>
+              <g fill="url(#mk)">
+                <rect id="b1" x="14" y="38" width="8" height="24" rx="4" />
+                <rect id="b2" x="30" y="24" width="8" height="52" rx="4" />
+                <rect id="b3" x="46" y="32" width="8" height="36" rx="4" />
+                <rect id="l1" x="58" y="32" width="30" height="8" rx="4" />
+                <rect id="l2" x="58" y="46" width="30" height="8" rx="4" />
+                <rect id="l3" x="58" y="60" width="30" height="8" rx="4" />
+              </g>
+            </svg>
+          </div>
+          <p class="wordmark" id="wm">EasySpeech</p>
+          <p class="punch" id="punch">We are not hiring.</p>
+          <p class="sub" id="sub">Free forever. There is nothing to buy.</p>
+          <p class="url" id="url">github.com/gulfvideo/easy-speech-ui</p>
+        </div>
+      </section>
+
+      <!-- ============ Audio ============ -->
+      <audio
+        id="bgm"
+        src="assets/music/happy-beats-business-moves-vol-10-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="19.6"
+        data-track-index="10"
+        data-volume="1"
+      ></audio>
+
+      <audio id="sfx-ann" src="assets/sfx/impactSoft_heavy_002.ogg" data-start="2.0" data-duration="0.572" data-track-index="11" data-volume="0.5"></audio>
+
+      <audio id="sfx-t1" src="assets/sfx/click2.ogg" data-start="7.790" data-duration="0.056" data-track-index="12" data-volume="0.34"></audio>
+      <audio id="sfx-t2" src="assets/sfx/click2.ogg" data-start="8.731" data-duration="0.056" data-track-index="12" data-volume="0.34"></audio>
+      <audio id="sfx-t3" src="assets/sfx/click2.ogg" data-start="9.834" data-duration="0.056" data-track-index="12" data-volume="0.34"></audio>
+
+      <audio id="sfx-cards" src="assets/sfx/impactSoft_medium_001.ogg" data-start="14.199" data-duration="0.183" data-track-index="13" data-volume="0.26"></audio>
+
+      <audio id="sfx-outro" src="assets/sfx/impactSoft_medium_000.ogg" data-start="15.824" data-duration="0.118" data-track-index="14" data-volume="0.38"></audio>
+    </div>
+
+    <script src="audio-data.js"></script>
+    <script>
+      (function () {
+        var E = "power3.out";
+        var tl = gsap.timeline({ paused: true });
+
+        /* ---- Scene 1: the announcement ---- */
+        tl.fromTo("#eyebrow", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E }, 0.15);
+        tl.fromTo("#ann1", { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: E }, 0.5);
+        // the payoff — dry impact lands with it
+        tl.fromTo("#ann2", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: E }, 2.0);
+
+        /* ---- Scene 2: 01 the problem. Hard cut, one sentence, full hold ---- */
+        tl.fromTo("#s2 .slug", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 3.45);
+        tl.fromTo("#prob", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 3.7);
+
+        /* ---- Scene 3: 02 the product ---- */
+        tl.fromTo("#s3 .slug", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 6.45);
+        tl.fromTo("#win", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: E }, 6.6);
+        // beat-grid: 7.790 / 8.731 / 9.834
+        [{ id: "#f1", t: 7.79 }, { id: "#f2", t: 8.731 }, { id: "#f3", t: 9.834 }].forEach(function (r) {
+          tl.fromTo(r.id, { backgroundColor: "rgba(255,255,255,0)" }, { backgroundColor: "rgba(255,255,255,0.8)", duration: 0.33, ease: "power2.out" }, r.t);
+          tl.to(r.id + " .tick", { backgroundColor: "#34c759", duration: 0.26, ease: "power2.out" }, r.t);
+          tl.fromTo(r.id + " .tick svg", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.28, ease: "back.out(2)" }, r.t + 0.04);
+        });
+        tl.to(".transcript p", { opacity: 1, duration: 0.4, stagger: 0.11, ease: "power2.out" }, 10.05);
+        tl.to(".win-foot .g", { opacity: 1, duration: 0.35, stagger: 0.06, ease: "power2.out" }, 10.75);
+
+        /* ---- Scene 4: 03 traction ---- */
+        tl.fromTo("#s4 .slug", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 11.45);
+        // beat-grid: cards on consecutive beats 12.562 / 13.108 / 13.642 / 14.199.
+        // Figures, not sentences — the readability budget is the ~1.6s the full set holds after.
+        [12.562, 13.108, 13.642, 14.199].forEach(function (t, i) {
+          tl.fromTo(".card:nth-child(" + (i + 1) + ")", { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42, ease: E }, t);
+        });
+        tl.to("#chartwrap", { opacity: 1, duration: 0.3, ease: "none" }, 13.5);
+        // the hockey stick that isn't
+        tl.fromTo("#zeroline", { scaleX: 0 }, { scaleX: 1, duration: 1.4, ease: "none" }, 13.6);
+        tl.fromTo("#zerotag", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "none" }, 14.9);
+        tl.fromTo("#foot", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "none" }, 14.3);
+
+        /* ---- Scene 5: outro. beat-locked: 15.824s strong cue ---- */
+        tl.fromTo("#tile", { scale: 0.88, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: E }, 15.824);
+        tl.fromTo(["#b1", "#b2", "#b3"], { scaleY: 0.1, transformOrigin: "50% 50%" }, { scaleY: 1, duration: 0.45, ease: "power2.out", stagger: 0.06 }, 15.95);
+        tl.fromTo(["#l1", "#l2", "#l3"], { scaleX: 0, transformOrigin: "0% 50%" }, { scaleX: 1, duration: 0.45, ease: "power3.out", stagger: 0.09 }, 16.15);
+        tl.fromTo("#wm", { y: 22, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: E }, 16.2);
+        tl.fromTo("#punch", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: E }, 16.9);
+        tl.fromTo("#sub", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "power2.out" }, 17.7);
+        tl.fromTo("#url", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 18.5);
+
+        /* ---- Music: straight-faced bed, small lift into traction, out by the punchline ---- */
+        tl.fromTo("#bgm", { volume: 0.34 }, { volume: 0.4, duration: 0.5, ease: "none" }, 11.4);
+        tl.to("#bgm", { volume: 0, duration: 1.2, ease: "power1.in" }, 18.4);
+
+        /* ---- Audio-reactive: background warmth + outro tile presence only ---- */
+        if (window.AUDIO_DATA && window.AUDIO_DATA.frames) {
+          var A = window.AUDIO_DATA;
+          var glow = document.getElementById("glow");
+          var tile = document.getElementById("tile");
+          for (var f = 0; f < A.totalFrames; f++) {
+            (function (fr, time) {
+              tl.call(function () {
+                var rms = fr.rms || 0;
+                var bass = fr.bands && fr.bands.length ? fr.bands[0] : 0;
+                if (glow) glow.style.opacity = (0.34 + rms * 0.5).toFixed(3);
+                if (tile && time >= 15.8) {
+                  tile.style.filter = "drop-shadow(0 0 " + (14 + bass * 32).toFixed(1) + "px rgba(158,212,255,0.4))";
+                }
+              }, [], time);
+            })(A.frames[f], f / A.fps);
+          }
+        }
+
+        window.__timelines["brag"] = tl;
+      })();
+    </script>
+  </body>
+</html>

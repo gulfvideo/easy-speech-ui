@@ -64,6 +64,13 @@ struct ContentView: View {
             return remaining > 1 ? "Transcribing — \(remaining) files left" : "Transcribing"
         }
         let done = queue.jobs.filter { $0.state == .finished }.count
+        // Say so when files were dropped, otherwise adding a folder of finished work
+        // looks like nothing happened at all.
+        let skipped = queue.lastSkippedCount
+        if skipped > 0 {
+            let already = "\(skipped) already transcribed"
+            return done > 0 ? "\(done) transcribed · \(already)" : already
+        }
         return done > 0 ? "\(done) transcribed" : "Ready"
     }
 
