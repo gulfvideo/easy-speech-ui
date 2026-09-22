@@ -32,6 +32,8 @@ enum CommandLineRunner {
         var timestamps = false
         var toStdout = false
         var quiet = false
+        /// Re-transcribe even when the output is already there. Off by default, matching the app.
+        var force = false
         var locale: String?
         var outputDirectory: URL?
 
@@ -41,7 +43,34 @@ enum CommandLineRunner {
     // MARK: - Entry
 
     /// Bridges the async work back to a synchronous `main`.
+    /// True when every file this invocation would write already exists in the destination.
+    ///
+    /// Requires *all* requested formats, so `--srt` after an earlier `--txt` run still does the
+    /// work rather than treating the file as finished.
+    private static func alreadyTranscribed(_ file: URL, options: Options) -> Bool {
+        let folder = options.outputDirectory ?? file.deletingLastPathComponent()
+        let base = file.deletingPathExtension().lastPathComponent
+
+        var wanted: [String] = []
+        if options.writeText { wanted.append("txt") }
+        if options.writeSRT { wanted.append("srt") }
+        if options.writeVTT { wanted.append("vtt") }
+        guard !wanted.isEmpty else { return false }
+
+        return wanted.allSatisfy {
+            FileManager.default.fileExists(
+                atPath: folder.appendingPathComponent(base).appendingPathExtension($0).path)
+        }
+    }
+
     static func runSynchronously(_ arguments: [String]) -> Never {
+        // Handled here, before the semaphore below parks the main thread. `SelfTest` is
+        // @MainActor, and nothing main-actor-isolated can ever be scheduled once this
+        // function is waiting — which is also why the transcription path stays nonisolated.
+        if arguments.contains("--self-test") {
+            exit(MainActor.assumeIsolated { SelfTest.run() })
+        }
+
         let semaphore = DispatchSemaphore(value: 0)
         nonisolated(unsafe) var code: Int32 = 0
         Task {
@@ -111,6 +140,16 @@ enum CommandLineRunner {
             corrections: corrections
         )
 
+        // Skip before decoding anything, so re-running a folder costs nothing. Matches the
+        // app's "Skip files already transcribed" setting; `--force` overrides both.
+        if !options.force, options.writesFiles, alreadyTranscribed(file, options: options) {
+            if !options.quiet {
+                FileHandle.standardError.write(
+                    Data("Skipping \(file.lastPathComponent) — already transcribed\n".utf8))
+            }
+            return
+        }
+
         if !options.quiet {
             FileHandle.standardError.write(Data("Transcribing \(file.lastPathComponent)…\n".utf8))
         }
@@ -138,6 +177,10 @@ enum CommandLineRunner {
         let base = file.deletingPathExtension().lastPathComponent
 
         func write(_ contents: String, _ ext: String) throws {
+            // Only write what's missing. Adding --srt to a file that already has a .txt should
+            // produce the subtitle and leave the transcript alone, not a second copy of it.
+            let existing = folder.appendingPathComponent(base).appendingPathExtension(ext)
+            if !options.force, FileManager.default.fileExists(atPath: existing.path) { return }
             let target = JobQueue.nonClobberingURL(folder: folder, base: base, ext: ext)
             try contents.write(to: target, atomically: true, encoding: .utf8)
             if !options.quiet {
@@ -171,6 +214,7 @@ enum CommandLineRunner {
             case "--timestamps":  options.timestamps = true
             case "--stdout":      options.toStdout = true
             case "--quiet", "-q": options.quiet = true
+            case "--force":       options.force = true
             case "--locale":
                 index += 1
                 guard index < arguments.count else { throw ParseError(message: "--locale needs a value, e.g. en-US") }
@@ -219,6 +263,7 @@ enum CommandLineRunner {
       --stdout           print the transcript as well as writing files
       --locale <id>      spoken language, e.g. en-US (default: the app's setting)
       -q, --quiet        no progress on stderr
+      --force            re-transcribe even if the output is already there
       -h, --help         this text
       --version          version only
 

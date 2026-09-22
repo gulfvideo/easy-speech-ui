@@ -21,8 +21,21 @@ DMG="$ROOT/build/EasySpeech-${VERSION}-macOS-${ARCH}.dmg"
 SCRATCH_DIR="$(mktemp -d)"
 SCRATCH="$SCRATCH_DIR/scratch.dmg"
 
-echo "==> Building app"
-"$ROOT/build.sh" >/dev/null
+# Preflight builds the app itself, transcribes real speech, feeds the CLI malformed input and
+# checks nothing crashed. Two crashes have shipped from here; both would have been caught by it.
+# Set SKIP_PREFLIGHT=1 only when you are knowingly packaging something you will not release.
+if [ "${SKIP_PREFLIGHT:-0}" = "1" ]; then
+  echo "==> Preflight SKIPPED (SKIP_PREFLIGHT=1) — do not ship this build"
+  echo "==> Building app"
+  "$ROOT/build.sh" >/dev/null
+else
+  echo "==> Preflight"
+  if ! "$ROOT/Tests/preflight.sh"; then
+    echo ""
+    echo "Refusing to package: preflight failed." >&2
+    exit 1
+  fi
+fi
 
 echo "==> Drawing background"
 BACKGROUND="$ROOT/build/dmg-background.tiff"

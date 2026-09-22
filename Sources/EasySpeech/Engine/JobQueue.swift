@@ -276,6 +276,13 @@ final class JobQueue {
         var written: [URL] = []
 
         func write(_ contents: String, extension ext: String) throws {
+            // Only write what's missing, so enabling a new format for a folder that's already
+            // been transcribed adds that format instead of duplicating the others.
+            let existing = folder.appendingPathComponent(base).appendingPathExtension(ext)
+            if settings.skipAlreadyTranscribed, FileManager.default.fileExists(atPath: existing.path) {
+                written.append(existing)
+                return
+            }
             let target = Self.nonClobberingURL(folder: folder, base: base, ext: ext)
             try contents.write(to: target, atomically: true, encoding: .utf8)
             written.append(target)

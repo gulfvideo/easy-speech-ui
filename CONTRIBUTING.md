@@ -128,6 +128,38 @@ path inside the volume's `.DS_Store`, and that file ships to everyone who downlo
 Building it inside the repo would publish the maintainer's home directory. `package.sh` refuses to
 ship an image that contains local paths.
 
+## Before every release
+
+```bash
+./Tests/preflight.sh          # everything that must pass
+./Tests/preflight.sh --quick  # same, minus the concurrency stage
+```
+
+`package.sh` runs it and refuses to build a DMG if it fails, so shipping without it means
+deliberately setting `SKIP_PREFLIGHT=1`. It covers, in order: the build (including the
+self-assigning-`didSet` guard), the in-process `--self-test`, a real transcription of speech
+generated with `say(1)` whose words must come back, per-format skipping, four kinds of malformed
+input, six concurrent transcriptions completing, the version being newer than the last tag, and
+finally a check that no crash report was written while any of that ran.
+
+`EasySpeech --self-test` is the in-process half and runs in under a second. It is deliberately
+biased towards *doing* rather than inspecting, because both crashes this project has shipped were
+in code the tests of the day never executed:
+
+- It **writes** every setting, including out-of-range values, rather than reading them. This is
+  the check that catches the `@Observable` `didSet` trap above — reinstate that bug and the
+  self-test dies with signal 11.
+- It drives the queue through claim, reorder, pause and cancel rather than asserting on a
+  freshly-built one.
+
+If you add a setting, add it to `settingsSurviveBeingWritten`. A setting that is never written by
+the suite is a setting with no coverage, and that is exactly how 1.2.6 shipped.
+
+The end-to-end fixture is generated with `say`, not checked in — no binary blobs in the repo, and
+because the spoken text is known the transcript can be checked for the actual words. A run that
+"succeeds" with an empty transcript is a real failure mode here (see the Int16 note above) and it
+exits 0, so asserting on content rather than exit status is the point.
+
 ## Soak testing
 
 Before a release, run the engine over real long-form material rather than clips. The last

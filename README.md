@@ -96,8 +96,9 @@ easyspeech *.mp4 --srt --out ~/Captions
 easyspeech lecture.mov --txt --timestamps --quiet
 ```
 
-Your saved corrections apply here too. `--help` lists the options. Shortcuts can call it
-through **Run Shell Script**.
+Your saved corrections apply here too, and so does skipping: point it at a folder you've
+already done and it leaves those files alone. Pass `--force` to redo them. `--help` lists the
+options. Shortcuts can call it through **Run Shell Script**.
 
 ## Updates
 
