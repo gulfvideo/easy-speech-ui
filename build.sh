@@ -7,6 +7,27 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP="$ROOT/build/EasySpeech.app"
 CONTENTS="$APP/Contents"
 
+# An @Observable property that assigns to itself inside its own didSet recurses until the
+# stack runs out — the macro turns it into a computed property, which removes Swift's usual
+# re-entry suppression. It builds and lints clean, and crashes the moment the value changes.
+# Shipped once, in 1.2.6. Never again.
+echo "==> Checking for self-assigning didSet"
+python3 - "$ROOT" <<'PYEOF'
+import re, sys, pathlib
+bad = []
+for f in pathlib.Path(sys.argv[1], "Sources").rglob("*.swift"):
+    src = f.read_text()
+    for m in re.finditer(r"var (\w+)[^\n]*\{\n(\s*didSet \{[^}]*\})", src):
+        name, block = m.group(1), m.group(2)
+        if re.search(rf"\b{name}\s*=[^=]", block):
+            bad.append(f"{f}: {name}")
+if bad:
+    print("  ERROR: property assigns to itself inside its own didSet:")
+    for b in bad:
+        print("   ", b)
+    sys.exit(1)
+PYEOF
+
 echo "==> Compiling ($CONFIG)"
 swift build -c "$CONFIG" --package-path "$ROOT"
 BIN="$(swift build -c "$CONFIG" --package-path "$ROOT" --show-bin-path)/EasySpeech"

@@ -144,11 +144,13 @@ final class AppSettings {
     /// One stream does not saturate the Neural Engine. Measured on an M5 Pro over 30-minute
     /// files: 72x realtime at 1, 207x at 4, 255x at 6, and it falls off again at 8. Individual
     /// files get slower, the batch finishes sooner.
+    /// Never clamp by assigning to this property inside its own `didSet`. `@Observable`
+    /// rewrites a stored property into a computed one, which removes Swift's usual
+    /// suppression of re-entry, so the assignment calls the setter again and recurses until
+    /// the stack runs out. That shipped in 1.2.6 and crashed the app on every change.
+    /// Clamping happens where the value is read instead: `init`, and `JobQueue.drain`.
     var concurrentJobs: Int {
-        didSet {
-            concurrentJobs = Self.clampConcurrency(concurrentJobs)
-            defaults.set(concurrentJobs, forKey: "concurrentJobs")
-        }
+        didSet { defaults.set(concurrentJobs, forKey: "concurrentJobs") }
     }
 
     static let concurrencyRange = 1...6
