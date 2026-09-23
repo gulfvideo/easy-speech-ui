@@ -36,7 +36,11 @@ PREFS="$HOME/Library/Preferences/com.easyspeech.ui.plist"
 [ -f "$PREFS" ] && cp "$PREFS" "$WORK/prefs.backup"
 
 cleanup() {
-    if [ -f "$WORK/prefs.backup" ] && [ "${PREFS_DIRTY:-0}" = "1" ]; then
+    # Unconditional. The self-test writes real preferences and restores them with `defer`,
+    # but `defer` does not run when the process takes a signal — and a self-test that crashes
+    # is exactly the case this suite exists to produce. Restoring only on success once left
+    # the recognition locale set to en-GB.
+    if [ -f "$WORK/prefs.backup" ]; then
         cp "$WORK/prefs.backup" "$PREFS"
         defaults read com.easyspeech.ui >/dev/null 2>&1 || true
     fi
@@ -61,7 +65,6 @@ fi
 
 # ---------------------------------------------------------------------------
 stage "In-process self-test (settings, queue, export)"
-PREFS_DIRTY=1
 if "$BIN" --self-test >"$WORK/selftest.log" 2>&1; then
     pass "$(cat "$WORK/selftest.log")"
 else
@@ -73,7 +76,6 @@ else
     fi
     sed 's/^/      /' "$WORK/selftest.log"
 fi
-PREFS_DIRTY=0
 
 # ---------------------------------------------------------------------------
 stage "Transcribe real speech end to end"
@@ -118,6 +120,23 @@ if head -1 "$WORK/out/fixture.vtt" 2>/dev/null | grep -q "^WEBVTT$"; then
     pass "VTT carries its header"
 else
     fail "VTT header missing"
+fi
+
+# ---------------------------------------------------------------------------
+stage "Audio decode stays off the CoreMedia AudioQueue pipeline"
+# Each AVAssetReader audio decode starts a CoreMedia pipeline with its own AudioQueue
+# threads. Six at once deadlocked inside AudioToolbox's XPC bridge after nineteen hours.
+# Ordinary audio must go through AVAudioFile, which brings up no such pipeline.
+"$BIN" "$WORK/fixture.aiff" --txt --out "$WORK/qcheck" --quiet >/dev/null 2>&1 &
+QPID=$!
+sleep 2
+sample $QPID 2 -mayDie >"$WORK/threads.txt" 2>/dev/null || true
+wait $QPID 2>/dev/null
+QUEUE_THREADS=$(grep -c "coremedia.audioqueue" "$WORK/threads.txt" 2>/dev/null || true)
+if [ "${QUEUE_THREADS:-0}" -eq 0 ]; then
+    pass "no coremedia.audioqueue threads during an audio decode"
+else
+    fail "audio decode spawned $QUEUE_THREADS coremedia.audioqueue thread(s) — the deadlock is back"
 fi
 
 # ---------------------------------------------------------------------------

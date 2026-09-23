@@ -44,7 +44,7 @@ A single transcription doesn't saturate the Neural Engine, so **Settings › Gen
 
 Each individual file gets slower; the batch finishes sooner. Six is the cap because that's where the curve turns over.
 
-The Neural Engine does the recognition, so the machine stays responsive throughout. Memory is flat regardless of length: it plateaus after the third file and stays there, and repeating one clip 25 times in a single run drifted half a megabyte.
+The Neural Engine does the recognition, so the machine stays responsive throughout. Memory is flat regardless of length: it plateaus after the third file and stays there, and repeating one clip 25 times in a single run drifted half a megabyte. Those figures are for one file at a time — running six in parallel uses correspondingly more.
 
 ## Requirements
 

@@ -41,6 +41,22 @@ Packaging/        DMG background generator
 
 ## Things that will bite you
 
+**Ordinary audio must not go through `AVAssetReader`.** Every `AVAssetReader` audio decode
+starts a CoreMedia pipeline with its own `coremedia.audioqueue`, `readerOfflineMixer` and
+`audiomentor` threads. One is fine. Six at once — the batch concurrency cap — deadlocked inside
+AudioToolbox's AudioQueue XPC bridge after nineteen hours of continuous work: *"dispatch_sync
+called on queue already owned by current thread"*, with no app frames anywhere on the crashing
+stack. That is a framework bug and cannot be fixed here, only avoided.
+
+`AudioSource.InputSequence.Iterator` therefore tries `AVAudioFile` first, which reads through
+ExtAudioFile and brings up no pipeline at all, and falls back to `AVAssetReader` only for video
+containers `AVAudioFile` cannot open. Measured on the same 14-minute MP3: the asset-reader path
+spawns those three thread families, the audio-file path spawns none and decodes in 0.42s.
+
+Switching decoders changes chunk boundaries, which changes recognition slightly — 99.6% word
+agreement on a 3,359-word episode, with identical first and last cue timestamps, so no audio is
+lost. Preflight asserts the audio path spawns zero `coremedia.audioqueue` threads.
+
 **Never clamp an `@Observable` property inside its own `didSet`.** Writing
 `x = clamp(x)` in `didSet` is a normal idiom for a stored property — Swift suppresses the
 re-entry. The `@Observable` macro rewrites the stored property into a computed one, and that

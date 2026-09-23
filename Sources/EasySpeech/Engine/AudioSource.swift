@@ -134,12 +134,35 @@ enum AudioSource {
             Iterator(url: url, format: format)
         }
 
+        /// Decodes the file's audio into the analyzer's format, one chunk at a time.
+        ///
+        /// Two backends. `AVAudioFile` is tried first and handles every audio-only container;
+        /// it reads through ExtAudioFile and brings up no pipeline of its own. `AVAssetReader`
+        /// is the fallback, for video containers `AVAudioFile` cannot open.
+        ///
+        /// The order matters for more than tidiness. Each `AVAssetReader` audio decode starts a
+        /// CoreMedia pipeline with its own `coremedia.audioqueue`, `readerOfflineMixer` and
+        /// `audiomentor` threads. Six of those at once deadlocked inside AudioToolbox's
+        /// AudioQueue XPC bridge — "dispatch_sync called on queue already owned by current
+        /// thread" — after nineteen hours of batch work. There are no app frames on that stack,
+        /// so it is not a bug this code can fix; routing ordinary audio away from that pipeline
+        /// avoids provoking it, and decodes faster besides.
         final class Iterator: AsyncIteratorProtocol {
             private let url: URL
             private let format: AVAudioFormat
-            private var reader: AVAssetReader?
-            private var output: AVAssetReaderTrackOutput?
+
+            private enum Backend {
+                case audioFile(AVAudioFile, AVAudioConverter, AVAudioPCMBuffer)
+                case assetReader(AVAssetReader, AVAssetReaderTrackOutput)
+            }
+            private var backend: Backend?
             private var finished = false
+            /// Output frames emitted so far, which is what dates each buffer.
+            private var framesEmitted: Int64 = 0
+
+            /// Input frames per read. Large enough that per-chunk overhead disappears, small
+            /// enough that memory stays flat on a multi-hour file.
+            private static let chunkFrames: AVAudioFrameCount = 16384
 
             init(url: URL, format: AVAudioFormat) {
                 self.url = url
@@ -147,15 +170,83 @@ enum AudioSource {
             }
 
             deinit {
-                if reader?.status == .reading { reader?.cancelReading() }
+                if case .assetReader(let reader, _) = backend, reader.status == .reading {
+                    reader.cancelReading()
+                }
             }
 
             func next() async throws -> AnalyzerInput? {
                 if finished { return nil }
-                if reader == nil { try await start() }
+                if backend == nil { try await start() }
 
-                guard let reader, let output else { return nil }
+                switch backend {
+                case .audioFile(let file, let converter, let scratch):
+                    return try nextFromAudioFile(file, converter, scratch)
+                case .assetReader(let reader, let output):
+                    return try nextFromAssetReader(reader, output)
+                case nil:
+                    return nil
+                }
+            }
 
+            // MARK: - AVAudioFile
+
+            private func nextFromAudioFile(_ file: AVAudioFile,
+                                           _ converter: AVAudioConverter,
+                                           _ scratch: AVAudioPCMBuffer) throws -> AnalyzerInput? {
+                while true {
+                    try Task.checkCancellation()
+
+                    guard file.framePosition < file.length else {
+                        finished = true
+                        return nil
+                    }
+
+                    scratch.frameLength = 0
+                    do {
+                        try file.read(into: scratch)
+                    } catch {
+                        // Running off the end mid-read is an ordinary stop, not a failure.
+                        finished = true
+                        return nil
+                    }
+                    guard scratch.frameLength > 0 else {
+                        finished = true
+                        return nil
+                    }
+
+                    let ratio = format.sampleRate / file.processingFormat.sampleRate
+                    let capacity = AVAudioFrameCount(Double(scratch.frameLength) * ratio) + 1024
+                    guard let out = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else {
+                        throw AudioSourceError.unreadable("Could not allocate a decode buffer.")
+                    }
+
+                    var conversionError: NSError?
+                    var supplied = false
+                    converter.convert(to: out, error: &conversionError) { _, status in
+                        if supplied {
+                            status.pointee = .noDataNow
+                            return nil
+                        }
+                        supplied = true
+                        status.pointee = .haveData
+                        return scratch
+                    }
+                    if let conversionError {
+                        throw AudioSourceError.unreadable(conversionError.localizedDescription)
+                    }
+                    guard out.frameLength > 0 else { continue }
+
+                    let start = CMTime(value: framesEmitted, timescale: CMTimeScale(format.sampleRate))
+                    framesEmitted += Int64(out.frameLength)
+                    return AnalyzerInput(buffer: out, bufferStartTime: start)
+                }
+            }
+
+            // MARK: - AVAssetReader
+
+            private func nextFromAssetReader(_ reader: AVAssetReader,
+                                             _ output: AVAssetReaderTrackOutput) throws -> AnalyzerInput? {
                 while true {
                     try Task.checkCancellation()
 
@@ -177,7 +268,21 @@ enum AudioSource {
                 }
             }
 
+            // MARK: - Setup
+
             private func start() async throws {
+                if let audioFile = try? AVAudioFile(forReading: url),
+                   audioFile.length > 0,
+                   let converter = AVAudioConverter(from: audioFile.processingFormat, to: format),
+                   let scratch = AVAudioPCMBuffer(pcmFormat: audioFile.processingFormat,
+                                                  frameCapacity: Self.chunkFrames) {
+                    backend = .audioFile(audioFile, converter, scratch)
+                    return
+                }
+                try await startAssetReader()
+            }
+
+            private func startAssetReader() async throws {
                 let asset = AVURLAsset(url: url,
                                        options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
 
@@ -229,8 +334,7 @@ enum AudioSource {
                     )
                 }
 
-                self.reader = reader
-                self.output = output
+                backend = .assetReader(reader, output)
             }
         }
     }
