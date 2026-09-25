@@ -104,6 +104,7 @@ final class JobQueue {
     func retry(_ job: Job) {
         guard job.state.isTerminal else { return }
         job.state = .queued
+        job.progress = 0
         job.outputs = []
         job.transcript = Transcript()
         startIfIdle()
@@ -146,12 +147,17 @@ final class JobQueue {
     private func alreadyTranscribed(_ url: URL) -> Bool {
         guard settings.skipAlreadyTranscribed, settings.writesAnyFile else { return false }
 
-        let extensions = settings.enabledOutputExtensions
+        return Self.hasAllOutputs(folder: settings.outputFolder(for: url),
+                                  base: url.deletingPathExtension().lastPathComponent,
+                                  extensions: settings.enabledOutputExtensions)
+    }
+
+    /// True when every one of `extensions` already exists beside `base` in `folder`.
+    ///
+    /// Shared with the command line tool so the two cannot drift apart — they answer the same
+    /// question and previously each had their own copy of the answer.
+    nonisolated static func hasAllOutputs(folder: URL, base: String, extensions: [String]) -> Bool {
         guard !extensions.isEmpty else { return false }
-
-        let folder = settings.outputFolder(for: url)
-        let base = url.deletingPathExtension().lastPathComponent
-
         return extensions.allSatisfy { ext in
             FileManager.default.fileExists(
                 atPath: folder.appendingPathComponent(base).appendingPathExtension(ext).path
@@ -233,7 +239,10 @@ final class JobQueue {
                         job.state = .preparing
                     case .transcribing(let fraction):
                         self.modelDownload = nil
-                        job.state = .transcribing(progress: fraction)
+                        job.progress = fraction
+                        // Assigning an unchanged enum still notifies observers, so only
+                        // transition when it is actually a transition.
+                        if job.state != .transcribing { job.state = .transcribing }
                     }
                 }
             }

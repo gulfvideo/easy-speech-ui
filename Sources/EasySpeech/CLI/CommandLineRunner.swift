@@ -55,12 +55,8 @@ enum CommandLineRunner {
         if options.writeText { wanted.append("txt") }
         if options.writeSRT { wanted.append("srt") }
         if options.writeVTT { wanted.append("vtt") }
-        guard !wanted.isEmpty else { return false }
 
-        return wanted.allSatisfy {
-            FileManager.default.fileExists(
-                atPath: folder.appendingPathComponent(base).appendingPathExtension($0).path)
-        }
+        return JobQueue.hasAllOutputs(folder: folder, base: base, extensions: wanted)
     }
 
     static func runSynchronously(_ arguments: [String]) -> Never {

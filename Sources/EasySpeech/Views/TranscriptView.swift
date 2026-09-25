@@ -51,7 +51,7 @@ struct TranscriptView: View {
         default:
             VStack(spacing: 14) {
                 ProgressView()
-                Text(job.state.label).foregroundStyle(.secondary)
+                Text(job.statusText).foregroundStyle(.secondary)
             }
         }
     }

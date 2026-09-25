@@ -200,6 +200,10 @@ fi
 stage "Release metadata"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$ROOT/Resources/Info.plist")"
 BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$ROOT/Resources/Info.plist")"
+# Releases are tagged server-side by `gh release create`, so the local tag list can be
+# missing the most recent one entirely — this check once compared 1.3.0 against 1.2.8 while
+# 1.2.9 was already published, and would have waved through a duplicate version.
+git -C "$ROOT" fetch --tags --quiet 2>/dev/null || true
 LATEST_TAG="$(git -C "$ROOT" tag --list 'v*' --sort=-v:refname | head -1 | sed 's/^v//')"
 
 if [ -z "$LATEST_TAG" ]; then

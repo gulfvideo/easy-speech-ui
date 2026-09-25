@@ -114,8 +114,8 @@ struct JobRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                if case .transcribing(let progress) = job.state {
-                    ProgressView(value: progress)
+                if job.state == .transcribing {
+                    ProgressView(value: job.progress)
                         .progressViewStyle(.linear)
                         .controlSize(.small)
                 } else {

@@ -205,7 +205,8 @@ enum SelfTest {
 
         // Simulate the first two already transcribing.
         queue.jobs[0].state = .preparing
-        queue.jobs[1].state = .transcribing(progress: 0.5)
+        queue.jobs[1].state = .transcribing
+        queue.jobs[1].progress = 0.5
 
         let last = queue.jobs[4]
         expect(queue.canMoveToTopOfQueue(last), "last waiting file can move")

@@ -41,6 +41,21 @@ Packaging/        DMG background generator
 
 ## Things that will bite you
 
+**Nothing that `ContentView.body` reads may scan every job.** The window subtitle reads
+`pendingCount` and counts finished jobs; `selectedJob` reads `activeJob`. All three iterate the
+job list and read each `state`, and under `@Observable` reading a property subscribes to it — so
+`ContentView.body` depends on the state of *every* file in the queue. One job changing state
+invalidates the whole split view and makes SwiftUI re-diff every row in the list.
+
+That is why `progress` is a separate property on `Job` rather than a payload on
+`.transcribing`. Progress ticks a few hundred times per file; `state` now changes about four
+times. Sampling 120 ten-minute files at a concurrency of five: main-thread time in SwiftUI
+runloop observers fell from 1134 samples to 203, and process CPU from 63% to 28%.
+
+The rule when adding UI: anything that ticks frequently belongs on the object the row reads, not
+on something a parent view aggregates. If you must aggregate, keep it out of any view body that
+also renders the list.
+
 **Ordinary audio must not go through `AVAssetReader`.** Every `AVAssetReader` audio decode
 starts a CoreMedia pipeline with its own `coremedia.audioqueue`, `readerOfflineMixer` and
 `audiomentor` threads. One is fine. Six at once — the batch concurrency cap — deadlocked inside

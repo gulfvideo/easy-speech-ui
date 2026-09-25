@@ -154,12 +154,28 @@ struct FileTranscriber: Sendable {
         corrections: [Correction]
     ) async throws -> [TranscriptSegment] {
         var segments: [TranscriptSegment] = []
+        /// Last whole percent reported, so progress is published at most 100 times per file.
+        ///
+        /// The analyzer finalizes a result per phrase — 2,757 of them for a two-hour podcast.
+        /// Reporting every one meant 2,757 hops to the main actor, each spawning a Task and
+        /// invalidating a row in a list that may hold hundreds of files. At one file at a time
+        /// that was survivable; at six it saturated the main thread and made the whole app
+        /// sluggish. A progress bar cannot show more than whole percents anyway.
+        ///
+        /// This loop is serial — one `for try await` over one sequence — so a plain local is
+        /// all the synchronisation this needs.
+        var lastReportedPercent = -1
 
         for try await result in transcriber.results {
             guard result.isFinal else { continue }
 
             if totalDuration > 0, result.range.end.isNumeric {
-                stage(.transcribing(min(0.99, max(0, result.range.end.seconds / totalDuration))))
+                let fraction = min(0.99, max(0, result.range.end.seconds / totalDuration))
+                let percent = Int(fraction * 100)
+                if percent != lastReportedPercent {
+                    lastReportedPercent = percent
+                    stage(.transcribing(fraction))
+                }
             }
 
             let attributed = result.text
