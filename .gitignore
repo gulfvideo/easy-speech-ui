@@ -4,7 +4,3 @@ build/
 *.xcuserdatad
 *.xcworkspace/xcuserdata/
 DerivedData/
-
-# installed agent skills, not part of the app
-.agents/
-skills-lock.json
