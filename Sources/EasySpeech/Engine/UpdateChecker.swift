@@ -79,7 +79,10 @@ enum UpdateChecker {
 
         guard let asset = payload.assets.first(where: { $0.name.hasSuffix(".dmg") }),
               let url = URL(string: asset.browserDownloadURL),
-              url.scheme == "https", url.host?.hasSuffix("github.com") == true else {
+              url.scheme == "https",
+              // Not `hasSuffix("github.com")` — that also matches evilgithub.com.
+              let host = url.host, host == "github.com" || host.hasSuffix(".github.com")
+        else {
             throw UpdateCheckError.noAsset
         }
 
