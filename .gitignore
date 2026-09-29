@@ -7,5 +7,4 @@ DerivedData/
 
 # installed agent skills, not part of the app
 .agents/
-.claude/
 skills-lock.json
