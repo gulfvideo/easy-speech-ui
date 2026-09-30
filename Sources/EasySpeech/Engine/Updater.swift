@@ -104,18 +104,43 @@ enum Updater {
             .appendingPathComponent("easyspeech-update-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
 
-        do {
-            let (temporary, response) = try await URLSession.shared.download(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                throw UpdateInstallError.downloadFailed("The download failed with HTTP \(http.statusCode).")
+        var lastError: Error?
+        for attempt in 1...downloadAttempts {
+            do {
+                let (temporary, response) = try await URLSession.shared.download(for: request)
+                if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                    throw UpdateInstallError.downloadFailed("The download failed with HTTP \(http.statusCode).")
+                }
+                let target = workspace.appendingPathComponent("update.dmg")
+                try FileManager.default.moveItem(at: temporary, to: target)
+                return target
+            } catch let error as UpdateInstallError {
+                throw error
+            } catch let error as URLError where isWorthRetrying(error) {
+                lastError = error
+                // 1s, then 2s. A DNS blip clears well inside that; anything that
+                // doesn't isn't going to be fixed by waiting longer either.
+                if attempt < downloadAttempts { try? await Task.sleep(for: .seconds(attempt)) }
+            } catch {
+                throw UpdateInstallError.downloadFailed(error.localizedDescription)
             }
-            let target = workspace.appendingPathComponent("update.dmg")
-            try FileManager.default.moveItem(at: temporary, to: target)
-            return target
-        } catch let error as UpdateInstallError {
-            throw error
-        } catch {
-            throw UpdateInstallError.downloadFailed(error.localizedDescription)
+        }
+        throw UpdateInstallError.downloadFailed(
+            lastError?.localizedDescription ?? "The download failed."
+        )
+    }
+
+    private static let downloadAttempts = 3
+
+    /// Worth another go: the name didn't resolve, the connection dropped, it timed out.
+    /// Not a 404, not a refused handshake — those fail the same way every time.
+    static func isWorthRetrying(_ error: URLError) -> Bool {
+        switch error.code {
+        case .cannotFindHost, .dnsLookupFailed, .cannotConnectToHost,
+             .timedOut, .networkConnectionLost, .notConnectedToInternet:
+            true
+        default:
+            false
         }
     }
 

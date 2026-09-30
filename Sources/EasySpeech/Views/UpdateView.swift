@@ -115,7 +115,7 @@ struct UpdateSheet: View {
     private func label(for stage: Updater.Stage) -> String {
         switch stage {
         case .downloading: "Downloading…"
-        case .verifying: "Verifying the download…"
+        case .verifying: "Checking the download and its signature…"
         case .installing: "Installing…"
         case .relaunching: "Relaunching…"
         }

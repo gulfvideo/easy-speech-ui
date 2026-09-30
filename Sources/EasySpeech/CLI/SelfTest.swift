@@ -43,6 +43,7 @@ enum SelfTest {
         subtitleOutputIsWellFormed()
         numberRepairLeavesRealNumbersAlone()
         correctionsAreExactNotFuzzy()
+        retriesCoverTheFailuresWorthRetrying()
 
         if failures.isEmpty {
             print("self-test: \(checks) checks passed")
@@ -53,6 +54,22 @@ enum SelfTest {
             FileHandle.standardError.write(Data("  ✗ \(f)\n".utf8))
         }
         return 1
+    }
+
+    // MARK: - Update download retries
+
+    /// A DNS blip once failed an update outright, with no second attempt. Retrying is only
+    /// worth it for failures that might not recur — a 404 or a refused handshake fails
+    /// identically every time, and retrying those just makes the user wait three times over.
+    private static func retriesCoverTheFailuresWorthRetrying() {
+        for code in [URLError.Code.cannotFindHost, .dnsLookupFailed, .cannotConnectToHost,
+                     .timedOut, .networkConnectionLost, .notConnectedToInternet] {
+            expect(Updater.isWorthRetrying(URLError(code)), "retries \(code.rawValue)")
+        }
+        for code in [URLError.Code.badURL, .unsupportedURL, .cancelled,
+                     .serverCertificateUntrusted, .fileDoesNotExist] {
+            expect(!Updater.isWorthRetrying(URLError(code)), "does not retry \(code.rawValue)")
+        }
     }
 
     // MARK: - The one that would have caught 1.2.6
@@ -140,9 +157,14 @@ enum SelfTest {
         let savedLocation = s.outputLocation
         let savedPath = s.customOutputPath
         let savedTxt = s.writeText, savedSRT = s.writeSRT, savedVTT = s.writeVTT
+        // Set, don't inherit: this test is about the skip logic, not about how the
+        // machine running it happens to have the preference set.
+        let savedSkip = s.skipAlreadyTranscribed
+        s.skipAlreadyTranscribed = true
         defer {
             s.outputLocation = savedLocation; s.customOutputPath = savedPath
             s.writeText = savedTxt; s.writeSRT = savedSRT; s.writeVTT = savedVTT
+            s.skipAlreadyTranscribed = savedSkip
         }
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())
