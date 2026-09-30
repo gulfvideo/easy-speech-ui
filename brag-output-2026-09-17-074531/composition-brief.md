@@ -10,7 +10,7 @@ A launch-announcement video for EasySpeech staged as a 2016 startup funding anno
 - Duration: 19.6 seconds
 
 ## Source Material
-- Project root: `/Users/jackson/Desktop/EasySpeech`
+- Project root: the repository root
 - Primary files read: `README.md`, `docs/screenshot.png`, `EasySpeechArt/EasySpeech-master.svg`
 - Product name: EasySpeech
 - Strongest claim: 24 hours of audio across 15 files in 954 seconds — 90× realtime, peak memory 39 MB, 2 MB download, zero dependencies

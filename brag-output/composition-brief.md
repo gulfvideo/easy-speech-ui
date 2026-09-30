@@ -10,7 +10,7 @@ Create a short launch-style brag video for EasySpeech, a native macOS transcript
 - Duration: 20.5 seconds
 
 ## Source Material
-- Project root: `/Users/jackson/Desktop/EasySpeech`
+- Project root: the repository root
 - Primary files read: `README.md`, `docs/screenshot.png`, `EasySpeechArt/EasySpeech-master.svg`, `EasySpeechArt/EasySpeech-1024.png`
 - Product name: EasySpeech
 - Tagline / strongest claim: *24 hours of podcasts and sermons — 15 files — transcribed in 954 seconds. That's 90× realtime, peak memory 39 MB.*
