@@ -14,15 +14,28 @@ struct InspectorView: View {
                 Toggle("Plain text (.txt)", isOn: $settings.writeText)
                 Toggle("Subtitles (.srt)", isOn: $settings.writeSRT)
                 Toggle("Web subtitles (.vtt)", isOn: $settings.writeVTT)
+                Toggle("Markdown (.md)", isOn: $settings.writeMarkdown)
 
                 Toggle("Timestamp each paragraph", isOn: $settings.timestampsInText)
-                    .disabled(!settings.writeText)
+                    .disabled(!settings.writeText && !settings.writeMarkdown)
 
-                if settings.outputLocation != .none && !settings.writeText && !settings.writeSRT && !settings.writeVTT {
+                if settings.outputLocation != .none && !settings.writesAnyFile {
                     Label("No file will be written.", systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+            }
+
+            Section("Tidy Up") {
+                Toggle("Remove filler words", isOn: $settings.removeFillerWords)
+                Text(settings.fillerWords.joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle("Fix obvious misspellings", isOn: $settings.fixSpelling)
+                Text("Conservative — leaves names and jargon alone.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Save To") {

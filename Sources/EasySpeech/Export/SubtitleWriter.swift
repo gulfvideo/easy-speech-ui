@@ -158,6 +158,30 @@ enum SubtitleWriter {
         }.joined(separator: "\n\n") + "\n"
     }
 
+    /// Markdown with YAML frontmatter, for a vault or a Notion import.
+    ///
+    /// Lives here with the other formats rather than in its own file: it is the same job
+    /// as `text(for:timestamps:)` with a header on top, and shares the timestamp setting
+    /// instead of inventing a second one.
+    static func markdown(for transcript: Transcript,
+                         title: String,
+                         source: URL?,
+                         timestamps: Bool) -> String {
+        var front = ["---", "title: \(yaml: title)"]
+        front.append("date: \(ISO8601DateFormatter().string(from: Date()))")
+        if transcript.totalDuration > 0 {
+            front.append("duration: \(shortTimecode(transcript.totalDuration))")
+        }
+        if !transcript.localeIdentifier.isEmpty {
+            front.append("language: \(transcript.localeIdentifier)")
+        }
+        if let source { front.append("source: \(yaml: source.lastPathComponent)") }
+        front.append("---")
+
+        return front.joined(separator: "\n") + "\n\n# \(title)\n\n"
+            + text(for: transcript, timestamps: timestamps)
+    }
+
     /// `hh:mm:ss,mmm` (SRT) or `hh:mm:ss.mmm` (VTT).
     static func timecode(_ seconds: TimeInterval, separator: String) -> String {
         let clamped = max(0, seconds)
@@ -179,5 +203,13 @@ enum SubtitleWriter {
         let s = total % 60
         return h > 0 ? String(format: "%d:%02d:%02d", h, m, s)
                      : String(format: "%d:%02d", m, s)
+    }
+}
+
+private extension String.StringInterpolation {
+    /// Quote a YAML scalar so a colon or a quote in a filename can't break the frontmatter.
+    mutating func appendInterpolation(yaml value: String) {
+        appendLiteral("\"" + value.replacingOccurrences(of: "\\", with: "\\\\")
+                                   .replacingOccurrences(of: "\"", with: "\\\"") + "\"")
     }
 }

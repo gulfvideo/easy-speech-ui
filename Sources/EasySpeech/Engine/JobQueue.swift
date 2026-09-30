@@ -277,7 +277,24 @@ final class JobQueue {
 
     // MARK: - Writing files
 
-    private func writeOutputs(for job: Job, transcript: Transcript) throws -> [URL] {
+    /// Re-exports a job whose transcript was edited by hand.
+    ///
+    /// Replaces the files rather than adding to them: a save that produced "name 2.txt"
+    /// beside the original would leave the user to work out which one is current.
+    @discardableResult
+    func rewriteOutputs(for job: Job) throws -> [URL] {
+        let written = try writeOutputs(for: job, transcript: job.transcript, overwrite: true)
+        job.outputs = written
+        return written
+    }
+
+    private func writeOutputs(for job: Job,
+                              transcript rawTranscript: Transcript,
+                              overwrite: Bool = false) throws -> [URL] {
+        let transcript = TextCleanup.apply(to: rawTranscript,
+                                           removingFillers: settings.removeFillerWords,
+                                           fillers: settings.fillerWords,
+                                           fixingSpelling: settings.fixSpelling)
         let folder = settings.customOutputURL ?? job.url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 
@@ -288,6 +305,11 @@ final class JobQueue {
             // Only write what's missing, so enabling a new format for a folder that's already
             // been transcribed adds that format instead of duplicating the others.
             let existing = folder.appendingPathComponent(base).appendingPathExtension(ext)
+            if overwrite {
+                try contents.write(to: existing, atomically: true, encoding: .utf8)
+                written.append(existing)
+                return
+            }
             if settings.skipAlreadyTranscribed, FileManager.default.fileExists(atPath: existing.path) {
                 written.append(existing)
                 return
@@ -305,6 +327,13 @@ final class JobQueue {
         }
         if settings.writeVTT {
             try write(SubtitleWriter.vtt(for: transcript), extension: "vtt")
+        }
+        if settings.writeMarkdown {
+            try write(SubtitleWriter.markdown(for: transcript,
+                                              title: base,
+                                              source: job.url,
+                                              timestamps: settings.timestampsInText),
+                      extension: "md")
         }
         return written
     }

@@ -44,6 +44,9 @@ enum SelfTest {
         numberRepairLeavesRealNumbersAlone()
         correctionsAreExactNotFuzzy()
         retriesCoverTheFailuresWorthRetrying()
+        exportTidyingLeavesRealWordsAlone()
+        markdownCarriesUsableFrontmatter()
+        savingAnEditReplacesTheFiles()
 
         if failures.isEmpty {
             print("self-test: \(checks) checks passed")
@@ -54,6 +57,102 @@ enum SelfTest {
             FileHandle.standardError.write(Data("  ✗ \(f)\n".utf8))
         }
         return 1
+    }
+
+    // MARK: - Export-time tidying
+
+    private static func exportTidyingLeavesRealWordsAlone() {
+        let f = TextCleanup.defaultFillers
+        expectEqual(TextCleanup.removeFillers("So, um, I think so", f),
+                    "So, I think so", "drops a filler mid-sentence")
+        expectEqual(TextCleanup.removeFillers("Um, hello there", f),
+                    "Hello there", "recapitalises when the first word went")
+        expectEqual(TextCleanup.removeFillers("Hummus and a mumble", f),
+                    "Hummus and a mumble", "leaves words that merely contain a filler")
+        expectEqual(TextCleanup.removeFillers("UH, right", f), "Right", "case insensitive")
+        expectEqual(TextCleanup.removeFillers("nothing to drop", f),
+                    "nothing to drop", "untouched when there is no filler")
+        expectEqual(TextCleanup.removeFillers("", f), "", "empty input")
+        expectEqual(TextCleanup.removeFillers("um uh er", []), "um uh er", "no list, no change")
+        expectEqual(TextCleanup.removeFillers("one\n\num two", f), "one\n\ntwo",
+                    "paragraph breaks survive")
+
+        // Conservative on purpose: a recogniser invents odd spellings for names, and
+        // "fixing" those would be worse than leaving them.
+        expectEqual(TextCleanup.fixSpelling("Jordi Bruin runs Good Snooze"),
+                    "Jordi Bruin runs Good Snooze", "leaves proper nouns alone")
+        expectEqual(TextCleanup.fixSpelling("the SpeechAnalyzer API on macOS"),
+                    "the SpeechAnalyzer API on macOS", "leaves jargon alone")
+        expectEqual(TextCleanup.fixSpelling(""), "", "empty input")
+
+        // Nothing enabled must be a no-op, not a rebuild.
+        let t = Transcript(segments: [TranscriptSegment(text: "um hello", start: 0, end: 1)])
+        expectEqual(TextCleanup.apply(to: t, removingFillers: false, fillers: f,
+                                      fixingSpelling: false).plainText,
+                    "um hello", "no-op when both are off")
+        expectEqual(TextCleanup.apply(to: t, removingFillers: true, fillers: f,
+                                      fixingSpelling: false).plainText,
+                    "hello", "applies when on, and doesn't invent a capital")
+    }
+
+    private static func markdownCarriesUsableFrontmatter() {
+        let t = Transcript(segments: [TranscriptSegment(text: "Hello there", start: 0, end: 2)],
+                           localeIdentifier: "en-US")
+        let md = SubtitleWriter.markdown(for: t, title: "My: \"Episode\"",
+                                         source: URL(fileURLWithPath: "/tmp/ep.mp3"),
+                                         timestamps: false)
+        expect(md.hasPrefix("---\n"), "opens with frontmatter")
+        expect(md.contains("language: en-US"), "carries the language")
+        expect(md.contains("source: \"ep.mp3\""), "carries the source filename only")
+        expect(md.contains("Hello there"), "carries the text")
+        // A colon or a quote in a filename must not break the YAML block.
+        expect(md.contains("title: \"My: \\\"Episode\\\"\""), "escapes the title")
+
+        let s = AppSettings.shared
+        let savedMD = s.writeMarkdown
+        defer { s.writeMarkdown = savedMD }
+        s.writeMarkdown = true
+        expect(s.enabledOutputExtensions.contains("md"), "md counts for skip detection")
+    }
+
+    /// Saving an edit must replace what it wrote before. A save that left "name 2.txt"
+    /// beside the original would leave the user guessing which one is current.
+    private static func savingAnEditReplacesTheFiles() {
+        let s = AppSettings.shared
+        let saved = (loc: s.outputLocation, path: s.customOutputPath, txt: s.writeText,
+                     srt: s.writeSRT, vtt: s.writeVTT, md: s.writeMarkdown, skip: s.skipAlreadyTranscribed)
+        defer {
+            s.outputLocation = saved.loc; s.customOutputPath = saved.path
+            s.writeText = saved.txt; s.writeSRT = saved.srt; s.writeVTT = saved.vtt
+            s.writeMarkdown = saved.md; s.skipAlreadyTranscribed = saved.skip
+        }
+
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("es-selftest-edit-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let source = dir.appendingPathComponent("show.mp3")
+        FileManager.default.createFile(atPath: source.path, contents: Data("x".utf8))
+        s.outputLocation = .alongsideSource
+        s.writeText = true; s.writeSRT = false; s.writeVTT = false; s.writeMarkdown = false
+        s.skipAlreadyTranscribed = false
+
+        let queue = JobQueue()
+        _ = queue.add([source])
+        guard let job = queue.jobs.first else { return expect(false, "queued a job to edit") }
+
+        job.transcript = Transcript(segments: [TranscriptSegment(text: "first pass", start: 0, end: 1)])
+        try? queue.rewriteOutputs(for: job)
+        job.transcript = Transcript(segments: [TranscriptSegment(text: "edited", start: 0, end: 1)])
+        try? queue.rewriteOutputs(for: job)
+
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        expectEqual(files.filter { $0.hasSuffix(".txt") }.count, 1, "one .txt after two saves")
+        let written = (try? String(contentsOf: dir.appendingPathComponent("show.txt"), encoding: .utf8)) ?? ""
+        expect(written.contains("edited"), "the file holds the edit")
+        expect(!written.contains("first pass"), "the old text is gone")
+        expectEqual(job.outputs.count, 1, "job points at the one file it wrote")
     }
 
     // MARK: - Update download retries

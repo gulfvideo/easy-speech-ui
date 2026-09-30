@@ -29,6 +29,9 @@ enum CommandLineRunner {
         var writeText = false
         var writeSRT = false
         var writeVTT = false
+        var writeMarkdown = false
+        var removeFillers = false
+        var fixSpelling = false
         var timestamps = false
         var toStdout = false
         var quiet = false
@@ -37,7 +40,7 @@ enum CommandLineRunner {
         var locale: String?
         var outputDirectory: URL?
 
-        var writesFiles: Bool { writeText || writeSRT || writeVTT }
+        var writesFiles: Bool { writeText || writeSRT || writeVTT || writeMarkdown }
     }
 
     // MARK: - Entry
@@ -55,6 +58,7 @@ enum CommandLineRunner {
         if options.writeText { wanted.append("txt") }
         if options.writeSRT { wanted.append("srt") }
         if options.writeVTT { wanted.append("vtt") }
+        if options.writeMarkdown { wanted.append("md") }
 
         return JobQueue.hasAllOutputs(folder: folder, base: base, extensions: wanted)
     }
@@ -150,7 +154,7 @@ enum CommandLineRunner {
             FileHandle.standardError.write(Data("Transcribing \(file.lastPathComponent)…\n".utf8))
         }
 
-        let transcript = try await FileTranscriber.transcribe(url: file, options: transcriberOptions) { stage in
+        let rawTranscript = try await FileTranscriber.transcribe(url: file, options: transcriberOptions) { stage in
             guard !options.quiet, case .transcribing(let fraction) = stage else { return }
             let percent = Int(fraction * 100)
             if percent % 10 == 0 {
@@ -161,6 +165,11 @@ enum CommandLineRunner {
         if !options.quiet {
             FileHandle.standardError.write(Data("  done\n".utf8))
         }
+
+        let transcript = TextCleanup.apply(to: rawTranscript,
+                                           removingFillers: options.removeFillers,
+                                           fillers: TextCleanup.defaultFillers,
+                                           fixingSpelling: options.fixSpelling)
 
         // Default behaviour with no format flags is to print, so it can be piped.
         if options.toStdout || !options.writesFiles {
@@ -188,6 +197,10 @@ enum CommandLineRunner {
         }
         if options.writeSRT { try write(SubtitleWriter.srt(for: transcript), "srt") }
         if options.writeVTT { try write(SubtitleWriter.vtt(for: transcript), "vtt") }
+        if options.writeMarkdown {
+            try write(SubtitleWriter.markdown(for: transcript, title: base,
+                                              source: file, timestamps: options.timestamps), "md")
+        }
     }
 
     // MARK: - Parsing
@@ -207,6 +220,9 @@ enum CommandLineRunner {
             case "--txt":         options.writeText = true
             case "--srt":         options.writeSRT = true
             case "--vtt":         options.writeVTT = true
+            case "--md":          options.writeMarkdown = true
+            case "--no-fillers":  options.removeFillers = true
+            case "--fix-spelling": options.fixSpelling = true
             case "--timestamps":  options.timestamps = true
             case "--stdout":      options.toStdout = true
             case "--quiet", "-q": options.quiet = true
@@ -254,6 +270,9 @@ enum CommandLineRunner {
       --txt              write a .txt beside the source
       --srt              write subtitles
       --vtt              write web subtitles
+      --md               write markdown with frontmatter (Obsidian, Notion)
+      --no-fillers       drop "um", "uh" and friends
+      --fix-spelling     conservative spelling fixes
       --out <dir>        write output files here instead
       --timestamps       prefix each paragraph with its time (text output)
       --stdout           print the transcript as well as writing files

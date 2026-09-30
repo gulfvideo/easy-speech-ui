@@ -87,6 +87,24 @@ final class AppSettings {
     var writeVTT: Bool {
         didSet { defaults.set(writeVTT, forKey: "writeVTT") }
     }
+
+    var writeMarkdown: Bool {
+        didSet { defaults.set(writeMarkdown, forKey: "writeMarkdown") }
+    }
+
+    /// Strip sounds like "um" on the way to a file. The transcript keeps them.
+    var removeFillerWords: Bool {
+        didSet { defaults.set(removeFillerWords, forKey: "removeFillerWords") }
+    }
+
+    var fillerWords: [String] {
+        didSet { defaults.set(fillerWords, forKey: "fillerWords") }
+    }
+
+    /// Apple's autocorrect over the text on the way to a file. Conservative by design.
+    var fixSpelling: Bool {
+        didSet { defaults.set(fixSpelling, forKey: "fixSpelling") }
+    }
     var timestampsInText: Bool {
         didSet { defaults.set(timestampsInText, forKey: "timestampsInText") }
     }
@@ -171,6 +189,7 @@ final class AppSettings {
         if writeText { exts.append("txt") }
         if writeSRT { exts.append("srt") }
         if writeVTT { exts.append("vtt") }
+        if writeMarkdown { exts.append("md") }
         return exts
     }
 
@@ -212,7 +231,7 @@ final class AppSettings {
 
     /// At least one format must stay on, otherwise a run produces nothing on disk.
     var writesAnyFile: Bool {
-        outputLocation != .none && (writeText || writeSRT || writeVTT)
+        outputLocation != .none && (writeText || writeSRT || writeVTT || writeMarkdown)
     }
 
     private init() {
@@ -232,6 +251,10 @@ final class AppSettings {
         writeText = defaults.bool(forKey: "writeText")
         writeSRT = defaults.bool(forKey: "writeSRT")
         writeVTT = defaults.bool(forKey: "writeVTT")
+        writeMarkdown = defaults.bool(forKey: "writeMarkdown")
+        removeFillerWords = defaults.bool(forKey: "removeFillerWords")
+        fillerWords = defaults.stringArray(forKey: "fillerWords") ?? TextCleanup.defaultFillers
+        fixSpelling = defaults.bool(forKey: "fixSpelling")
         timestampsInText = defaults.bool(forKey: "timestampsInText")
         outputLocation = OutputLocation(rawValue: defaults.string(forKey: "outputLocation") ?? "")
             ?? .alongsideSource

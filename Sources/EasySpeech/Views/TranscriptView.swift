@@ -9,6 +9,13 @@ struct TranscriptView: View {
     @State private var searchText = ""
     @State private var player = TranscriptPlayer()
 
+    @Environment(JobQueue.self) private var queue
+    @Environment(AppSettings.self) private var settings
+    /// Non-empty only while editing. Edits stay here until saved, so closing without
+    /// saving costs nothing and the files on disk are never half-written.
+    @State private var draft: [TranscriptSegment] = []
+    @State private var saveError: String?
+
     var body: some View {
         Group {
             if let job {
@@ -60,12 +67,20 @@ struct TranscriptView: View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    ForEach(filteredSegments(job)) { segment in
-                        SegmentRow(segment: segment,
-                                   showTimestamp: showTimestamps,
-                                   isActive: activeSegment == segment.id,
-                                   canPlay: mediaExists(job)) {
-                            player.play(job.url, at: segment.start)
+                    if isEditing {
+                        // One box per cue, each keeping its own start and end, so the
+                        // subtitle timings stay valid however the words change.
+                        ForEach($draft) { $segment in
+                            EditableSegmentRow(segment: $segment, showTimestamp: showTimestamps)
+                        }
+                    } else {
+                        ForEach(filteredSegments(job)) { segment in
+                            SegmentRow(segment: segment,
+                                       showTimestamp: showTimestamps,
+                                       isActive: activeSegment == segment.id,
+                                       canPlay: mediaExists(job)) {
+                                player.play(job.url, at: segment.start)
+                            }
                         }
                     }
                 }
@@ -77,8 +92,34 @@ struct TranscriptView: View {
             Divider()
             statusBar(job)
         }
-        .searchable(text: $searchText, placement: .toolbar, prompt: "Find in transcript")
+        .searchable(text: $searchText, isPresented: .constant(!isEditing),
+                    placement: .toolbar, prompt: "Find in transcript")
+        .alert("Couldn't save", isPresented: .constant(saveError != nil)) {
+            Button("OK") { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
         .toolbar {
+            if isEditing {
+                ToolbarItem {
+                    Button("Cancel") { draft = [] }
+                }
+                ToolbarItem {
+                    Button("Save") { save(job) }
+                        .keyboardShortcut("s", modifiers: .command)
+                        .buttonStyle(.borderedProminent)
+                }
+            } else {
+                ToolbarItem {
+                    Button {
+                        draft = job.transcript.segments
+                        player.unload()
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .help("Correct the text, then save to rewrite the files")
+                }
+            }
             ToolbarItem {
                 Toggle(isOn: $showTimestamps) {
                     Label("Timestamps", systemImage: "clock")
@@ -187,6 +228,55 @@ struct TranscriptView: View {
             default: SubtitleWriter.text(for: job.transcript, timestamps: showTimestamps)
             }
             try? contents.write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+}
+
+private extension TranscriptView {
+    var isEditing: Bool { !draft.isEmpty }
+}
+
+extension TranscriptView {
+    /// Writes the edits back and re-exports every enabled format together, so the .txt
+    /// and the .srt can't end up describing different text.
+    fileprivate func save(_ job: Job) {
+        job.transcript.segments = draft
+        do {
+            if !job.outputs.isEmpty || settings.writesAnyFile {
+                try queue.rewriteOutputs(for: job)
+            }
+            draft = []
+        } catch {
+            saveError = error.localizedDescription
+        }
+    }
+
+}
+
+/// A cue's text, editable, with its timing shown but fixed.
+struct EditableSegmentRow: View {
+    @Binding var segment: TranscriptSegment
+    let showTimestamp: Bool
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Color.clear.frame(width: 14)
+            if showTimestamp {
+                Text(SubtitleWriter.shortTimecode(segment.start))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .trailing)
+            }
+            TextField("", text: $segment.text, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14))
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04))
         }
     }
 }
