@@ -15,6 +15,7 @@ struct TranscriptView: View {
     /// saving costs nothing and the files on disk are never half-written.
     @State private var draft: [TranscriptSegment] = []
     @State private var saveError: String?
+    @FocusState private var focusedSegment: UUID?
 
     var body: some View {
         Group {
@@ -67,57 +68,47 @@ struct TranscriptView: View {
         VStack(spacing: 0) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 14) {
-                    if isEditing {
-                        // One box per cue, each keeping its own start and end, so the
-                        // subtitle timings stay valid however the words change.
-                        ForEach($draft) { $segment in
-                            EditableSegmentRow(segment: $segment, showTimestamp: showTimestamps)
-                        }
-                    } else {
-                        ForEach(filteredSegments(job)) { segment in
-                            SegmentRow(segment: segment,
-                                       showTimestamp: showTimestamps,
-                                       isActive: activeSegment == segment.id,
-                                       canPlay: mediaExists(job)) {
-                                player.play(job.url, at: segment.start)
-                            }
+                    // Always editable: click a line and type. There is no mode to enter,
+                    // and nothing reaches disk until Save.
+                    ForEach($draft) { $segment in
+                        EditableSegmentRow(segment: $segment,
+                                           showTimestamp: showTimestamps,
+                                           focused: $focusedSegment,
+                                           canPlay: mediaExists(job)) {
+                            player.play(job.url, at: segment.start)
                         }
                     }
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .textSelection(.enabled)
+
 
             Divider()
             statusBar(job)
         }
-        .searchable(text: $searchText, isPresented: .constant(!isEditing),
-                    placement: .toolbar, prompt: "Find in transcript")
+        .onAppear { draft = job.transcript.segments }
+        .onChange(of: job.id) { draft = job.transcript.segments }
+        .onChange(of: job.transcript.segments.count) {
+            // A re-transcription replaced the text underneath us.
+            if !isDirty { draft = job.transcript.segments }
+        }
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Find in transcript")
         .alert("Couldn't save", isPresented: .constant(saveError != nil)) {
             Button("OK") { saveError = nil }
         } message: {
             Text(saveError ?? "")
         }
         .toolbar {
-            if isEditing {
+            if isDirty {
                 ToolbarItem {
-                    Button("Cancel") { draft = [] }
+                    Button("Revert") { draft = job.transcript.segments }
                 }
                 ToolbarItem {
                     Button("Save") { save(job) }
                         .keyboardShortcut("s", modifiers: .command)
                         .buttonStyle(.borderedProminent)
-                }
-            } else {
-                ToolbarItem {
-                    Button {
-                        draft = job.transcript.segments
-                        player.unload()
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
-                    .help("Correct the text, then save to rewrite the files")
+                        .help("Rewrite every enabled format with these edits")
                 }
             }
             ToolbarItem {
@@ -233,7 +224,11 @@ struct TranscriptView: View {
 }
 
 private extension TranscriptView {
-    var isEditing: Bool { !draft.isEmpty }
+    /// Something was typed that isn't on disk yet.
+    var isDirty: Bool {
+        guard let job, draft.count == job.transcript.segments.count else { return !draft.isEmpty }
+        return zip(draft, job.transcript.segments).contains { $0.text != $1.text }
+    }
 }
 
 extension TranscriptView {
@@ -245,7 +240,8 @@ extension TranscriptView {
             if !job.outputs.isEmpty || settings.writesAnyFile {
                 try queue.rewriteOutputs(for: job)
             }
-            draft = []
+            // The draft is now what's on disk, so Save drops out of the toolbar.
+            draft = job.transcript.segments
         } catch {
             saveError = error.localizedDescription
         }
@@ -257,10 +253,25 @@ extension TranscriptView {
 struct EditableSegmentRow: View {
     @Binding var segment: TranscriptSegment
     let showTimestamp: Bool
+    /// Bound to the TextField itself. Putting this on the row instead means the HStack
+    /// becomes the focus target, it isn't focusable, and the field never takes the caret —
+    /// which looked exactly like an editable box that ignored typing.
+    @FocusState.Binding var focused: UUID?
+    var canPlay = false
+    var play: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Color.clear.frame(width: 14)
+            Button(action: play) {
+                Image(systemName: "play.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .opacity(0.5)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canPlay)
+            .frame(width: 14)
+
             if showTimestamp {
                 Text(SubtitleWriter.shortTimecode(segment.start))
                     .font(.system(.caption, design: .monospaced))
@@ -269,6 +280,7 @@ struct EditableSegmentRow: View {
             }
             TextField("", text: $segment.text, axis: .vertical)
                 .textFieldStyle(.plain)
+                .focused($focused, equals: segment.id)
                 .font(.system(size: 14))
                 .lineSpacing(3)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -276,7 +288,9 @@ struct EditableSegmentRow: View {
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
         .background {
-            RoundedRectangle(cornerRadius: 6).fill(Color.primary.opacity(0.04))
+            RoundedRectangle(cornerRadius: 6)
+                .fill(focused == segment.id ? Color.accentColor.opacity(0.10)
+                                            : Color.primary.opacity(0.035))
         }
     }
 }
