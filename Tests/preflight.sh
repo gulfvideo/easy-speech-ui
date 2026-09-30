@@ -65,11 +65,32 @@ fi
 
 # ---------------------------------------------------------------------------
 stage "In-process self-test (settings, queue, export)"
-if "$BIN" --self-test >"$WORK/selftest.log" 2>&1; then
+# Bounded, because a hang is a real failure mode here: 1.3.3 shipped a spellcheck loop
+# that never terminated, and an unbounded run would wait for it rather than report it.
+# macOS has no timeout(1), so run it in the background and reap it.
+run_bounded() {
+    local limit=$1; shift
+    "$@" >"$WORK/selftest.log" 2>&1 &
+    local pid=$! waited=0
+    while kill -0 "$pid" 2>/dev/null; do
+        if [ "$waited" -ge "$limit" ]; then
+            kill -9 "$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null
+            return 124
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    wait "$pid"
+}
+
+if run_bounded 120 "$BIN" --self-test; then
     pass "$(cat "$WORK/selftest.log")"
 else
     code=$?
-    if [ $code -ge 128 ]; then
+    if [ $code -eq 124 ]; then
+        fail "self-test HUNG (over 120s) — something is looping; the app would beachball"
+    elif [ $code -ge 128 ]; then
         fail "self-test CRASHED (signal $((code - 128))) — a setter or queue path is unsafe"
     else
         fail "self-test failed"

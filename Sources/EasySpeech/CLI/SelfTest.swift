@@ -85,6 +85,17 @@ enum SelfTest {
                     "the SpeechAnalyzer API on macOS", "leaves jargon alone")
         expectEqual(TextCleanup.fixSpelling(""), "", "empty input")
 
+        // The 1.3.3 beachball. `checkSpelling(of:startingAt:)` wraps to the start of the
+        // string, so a misspelling the corrector DECLINES to fix (like "teh") sent the
+        // cursor backwards forever. Reaching the line after this is the assertion — if
+        // the loop ever regresses, the self-test hangs instead of returning.
+        let stubborn = "teh quick brown fox jumped over teh lazy dog and anothr one"
+        let deadline = Date()
+        _ = TextCleanup.fixSpelling(stubborn)
+        expect(Date().timeIntervalSince(deadline) < 10, "uncorrectable misspellings terminate")
+        expect(TextCleanup.fixSpelling(stubborn).contains("quick brown fox"),
+               "text survives an uncorrectable misspelling")
+
         // Nothing enabled must be a no-op, not a rebuild.
         let t = Transcript(segments: [TranscriptSegment(text: "um hello", start: 0, end: 1)])
         expectEqual(TextCleanup.apply(to: t, removingFillers: false, fillers: f,
@@ -256,14 +267,17 @@ enum SelfTest {
         let savedLocation = s.outputLocation
         let savedPath = s.customOutputPath
         let savedTxt = s.writeText, savedSRT = s.writeSRT, savedVTT = s.writeVTT
-        // Set, don't inherit: this test is about the skip logic, not about how the
-        // machine running it happens to have the preference set.
-        let savedSkip = s.skipAlreadyTranscribed
+        // Set, don't inherit: this test is about the skip logic, not about how the machine
+        // running it happens to be configured. EVERY setting the skip check reads has to be
+        // pinned here — this broke once because a new output format was added above and not
+        // added here, and the test then failed on any machine with that format switched on.
+        let savedMD = s.writeMarkdown, savedSkip = s.skipAlreadyTranscribed
         s.skipAlreadyTranscribed = true
+        s.writeMarkdown = false
         defer {
             s.outputLocation = savedLocation; s.customOutputPath = savedPath
             s.writeText = savedTxt; s.writeSRT = savedSRT; s.writeVTT = savedVTT
-            s.skipAlreadyTranscribed = savedSkip
+            s.writeMarkdown = savedMD; s.skipAlreadyTranscribed = savedSkip
         }
 
         let dir = URL(fileURLWithPath: NSTemporaryDirectory())

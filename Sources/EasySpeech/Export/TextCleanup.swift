@@ -74,17 +74,31 @@ enum TextCleanup {
         var result = text as NSString
         var cursor = 0
         while cursor < result.length {
-            let range = checker.checkSpelling(of: result as String, startingAt: cursor)
+            // `wrap: false` is load-bearing. The two-argument checkSpelling wraps to the
+            // start of the string, so once the cursor passes the last misspelling it finds
+            // the first one again, moves the cursor backwards, and spins forever.
+            let range = checker.checkSpelling(of: result as String,
+                                              startingAt: cursor,
+                                              language: language,
+                                              wrap: false,
+                                              inSpellDocumentWithTag: tag,
+                                              wordCount: nil)
             guard range.location != NSNotFound, range.length > 0 else { break }
+
+            let next: Int
             if let fix = checker.correction(forWordRange: range,
                                             in: result as String,
                                             language: language,
                                             inSpellDocumentWithTag: tag) {
                 result = result.replacingCharacters(in: range, with: fix) as NSString
-                cursor = range.location + (fix as NSString).length
+                next = range.location + (fix as NSString).length
             } else {
-                cursor = range.location + range.length
+                next = range.location + range.length
             }
+            // Belt and braces: whatever the framework returns, this loop moves forward.
+            // A freeze here beachballs the whole app, which is too high a price for
+            // trusting an argument.
+            cursor = max(next, cursor + 1)
         }
         return result as String
     }
